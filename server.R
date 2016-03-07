@@ -21,3 +21,24 @@ shinyServer(function(input, output) { # server is defined within
     paste0('Observations: ', input$obs)
   })
 })
+
+# aspon 3 metriky co monitoruju vykon nejakej role
+# 
+  # WPL - QA app rate
+  #     - sponosor app rate
+  #     - WDL app rate?
+  #     - OTD to sponsor
+  #     - turnaround?
+  #     - waiting times?
+  # WB  - report EM Web builder?
+# par globalnych metrik
+  # utilizacia
+  # 
+# analyticka funkcionalita - rozne metriky na task?
+  # 1 premenna - grafy, summary
+  # 2 a viac premennych
+  # upload suboru
+# vizualizacne vychytavky - rCharts, Google charts (google vis), plotly, ggvis, ggplot2
+  # sankey diagram - budget a spending projektov?
+  # interaktivna mapa, nejaka jednoducha metrika na staty
+
