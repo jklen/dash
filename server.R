@@ -34,8 +34,15 @@ shinyServer(function(input, output) { # server is defined within
   #     - waiting times?
   # WB  - report EM Web builder?
 # par globalnych metrik
-  # utilizacia
-  # 
+  # utilizacia  - podla centra, departmentu, usera
+  #             - checkbox na centra, departmenty, alebo userov
+  #             - checkbox ci budu prompty kaskadovane
+  #             - ako celkova utilizacia/boxplot utilizacie na usera
+  #             - globalna utilizacia
+  #             - cislo pri boxplote: expected billable hours
+  #             - cislo pri boxplote: rast v % celkovej utilizacie oproti
+  #                 minulemu mesiacu
+  #             - checkbox na utilizacia = 0
 # analyticka funkcionalita - rozne metriky na task?
   # 1 premenna - grafy, summary
   # 2 a viac premennych

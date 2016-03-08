@@ -39,7 +39,7 @@ ggplot(aes(x = factor(YEARMONTH),
   geom_violin(alpha = 0.2) +
   geom_boxplot(alpha = 0.5) + 
   geom_line(aes(group = CENTER_ID, color = CENTER_ID), 
-            size = 0.5,
+            size = 1,
             data = mqt_util %>% 
               filter(SUMMARY == 44 & YEAR >= '2015-01-01') %>% 
               group_by(CENTER_ID, YEARMONTH) %>% 
@@ -53,7 +53,7 @@ ggplot(aes(x = factor(YEARMONTH),
         panel.grid.major = element_line(colour = '#F6F6F6'),
         axis.line = element_line(colour = '#BDBDBD')) + 
   stat_summary(fun.y = mean, geom = 'point', shape = 1) + 
-  geom_hline(yintercept = 0.85, color = 'red', linetype = 2, size = 1) + 
+  geom_hline(yintercept = 0.85, color = 'red', linetype = 2) + 
   xlab('Yearmonth') +
   ggtitle('User utilization')
 
