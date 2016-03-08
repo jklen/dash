@@ -10,6 +10,8 @@ library(plotly)
 library(ggplot2)
 library(dplyr)
 
+mqt_utilization <- read.csv('mqt_utilization.csv')
+
 shinyServer(function(input, output) { # server is defined within
   # these parentheses
   
