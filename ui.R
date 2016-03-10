@@ -8,17 +8,22 @@ shinyUI(pageWithSidebar( # standard shiny layout, controls on the
   # left, output on the right
   
   headerPanel("Utilization"), 
+  
   sidebarPanel( 
-    checkboxGroupInput(inputId = "center",
-              label = "Center ID", 
-              choices = c('LA' = 1,
-                          'EMEA' = 2,
-                          'AP' = 3,
-                          'JP - Dalian' = 4)
-    )
+    
+    radioButtons(inputId = "grouping",
+              label = "Select grouping", 
+              choices = c('Geo',
+                          'Organization',
+                          'Department',
+                          'User')
+    ),
+    
+    div(style = 'height: 220px; overflow:scroll', uiOutput('reac_units'))
   ),
   
   mainPanel(
-    plotOutput("plotDisplay")
+    
+    plotOutput("utilization")
   )
 ))

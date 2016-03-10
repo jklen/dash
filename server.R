@@ -7,88 +7,43 @@ library(ggExtra)
 
 # data load and prepare
 
-
-
-loadData <- function() {
-
-  mqt_utilization <- read.csv('mqt_utilization.csv')
-
-  mqt_util <- mqt_utilization
-  mqt_util[,c(1:5, 10:13, 27)] <- lapply(mqt_util[,c(1:5, 10:13, 27)], as.character)
-  mqt_util[,c(1:5, 10:13, 27)] <- lapply(mqt_util[,c(1:5, 10:13, 27)], factor)
-
-  mqt_util$YEAR <-
-    as.POSIXct(strptime(paste0(as.character(mqt_util$YEAR), '0101'), format = '%Y%m%d'))
-
-  mqt_util$YEARMONTH <-
-    as.POSIXct(strptime(paste0(as.character(mqt_util$YEARMONTH), '01'), format = '%Y%m%d'))
-
-  # used groupings
-
-  util_global <- mqt_util %>%
-    filter(SUMMARY == 41 & YEAR >= '2015-01-01' & TRACKED_BILLABLE > 0) %>%
-    group_by(YEARMONTH) %>%
-    summarise(t_bill = sum(TRACKED_BILLABLE),
-              t_inv = sum(TRACKED_INVESTMENT),
-              exp_bill = sum(EXPECTED_BILLABLE)) %>%
-    mutate(util_bill = (t_bill + t_inv)/exp_bill) %>%
-    ungroup()
-
-  util_center <- mqt_util %>%
-    filter(SUMMARY == 44 & YEAR >= '2015-01-01') %>%
-    group_by(CENTER_ID, YEARMONTH) %>%
-    summarise(t_bill = sum(TRACKED_BILLABLE),
-              t_inv = sum(TRACKED_INVESTMENT),
-              exp_bill = sum(EXPECTED_BILLABLE)) %>%
-    mutate(util_bill = (t_bill + t_inv)/exp_bill) %>%
-    ungroup()
-
-  util_dept <-
-    mqt_util[mqt_util$SUMMARY == 43, c('DEPT_ID', 'TRACKED_BILLABLE', 'TRACKED_INVESTMENT',
-                                       'EXPECTED_BILLABLE', 'UTIL_BILLABLE')]
-
-  colnames(util_dept) <- c('DEPT_ID', 't_bill', 't_inv', 'exp_bill', 'util_bill')
-
-  util_user <- mqt_util %>%
-    filter(SUMMARY == 41 & YEAR >= '2015-01-01') %>%
-    group_by(YEARMONTH,USER_ID) %>%
-    summarise(t_bill = sum(TRACKED_BILLABLE),
-              t_inv = sum(TRACKED_INVESTMENT),
-              exp_bill = sum(EXPECTED_BILLABLE)) %>%
-    mutate(util_bill = (t_bill + t_inv)/exp_bill) %>%
-    filter(util_bill > 0) %>%
-    ungroup()
-  
-}
-
-# loadData()
 load('.Rdata')
 
-main_plot <- ggplot(aes(x = factor(YEARMONTH), 
-                        y = util_bill), 
-                    data = util_user) + 
-  #geom_violin(alpha = 0.2) +
-  geom_boxplot(alpha = 0.5) +
-  geom_line(aes(group = 'global'), data = util_global, linetype = 2) +
-  theme(panel.background = element_rect(fill =NA),
-        panel.grid.major = element_line(colour = '#F6F6F6'),
-        axis.line = element_line(colour = '#BDBDBD')) +
-  stat_summary(fun.y = mean, geom = 'point', shape = 1) +
-  geom_hline(yintercept = 0.85, color = 'red', linetype = 2) +
-  xlab('Yearmonth')
-
-shinyServer(function(input, output) { # server is defined within
-  # these parentheses
+shinyServer(function(input, output) {
   
-  output$plotDisplay <- renderPlot({
     
-    main_plot1 <- main_plot + geom_line(aes(group = CENTER_ID, color = CENTER_ID),
-                      data = util_center[util_center$CENTER_ID %in% input$center,])
+  output$reac_units <- renderUI({
     
-    ggMarginal(main_plot1, type = 'histogram', margins = 'y', fill = '#F79420', bins = 50)
-    
+    units_list <- pass_units()
+      
+    checkboxGroupInput(inputId = 'units',
+                       label = input$grouping,
+                       choices = units_list
+                       )
+      
   })
   
+  pass_units <- reactive({
+    
+    if (input$grouping == 'Geo'){
+      units <- unique(df_util$GEO_NAME)
+    } else {
+      
+      if (input$grouping == 'Organization'){
+        units <- unique(df_util$ORG_NAME) 
+      } else {
+        
+        if (input$grouping == 'Department'){
+          units <- unique(df_util$DEPT_NAME) 
+        } else {
+          units <- unique(df_util$USER_NAME) 
+        }
+      }
+    }
+
+  units  
+    
+  })
 })
 
 ################################################################################
@@ -103,7 +58,7 @@ shinyServer(function(input, output) { # server is defined within
   #     - waiting times?
   # WB  - report EM Web builder?
 # par globalnych metrik
-  # utilizacia  - podla centra, departmentu, usera
+  # utilizacia  - podla geo -> dept -> org -> user 41
   #             - boxplot alebo ciara (celkova utilizacia, priemer alebo median)
   #             - zoom na mesiace aj hodnoty
   #             - druhy graf pod celkovy histogram alebo boxplot, podla zvolenych
@@ -125,3 +80,4 @@ shinyServer(function(input, output) { # server is defined within
   # sankey diagram - budget a spending projektov?
   # interaktivna mapa, nejaka jednoducha metrika na staty
 
+# v tabulke user je v 34 riadku volaka cinska picovina, robi bordel - stlpec BUSNEED

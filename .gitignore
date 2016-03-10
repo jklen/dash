@@ -4,3 +4,7 @@
 .Ruserdata
 mqt_utilization.csv
 groupings.csv
+dept.csv
+geo.csv
+org.csv
+user.tsv
