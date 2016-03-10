@@ -1,27 +1,20 @@
 library(ggplot2)
+library(plotly)
 library(ggExtra)
 library(dplyr)
 library(shiny)
 library(lubridate)
 
-mqt_util <- mqt_utilization
-mqt_util[,c(1:5, 10:13, 27)] <- lapply(mqt_util[,c(1:5, 10:13, 27)], as.character)
-mqt_util[,c(1:5, 10:13, 27)] <- lapply(mqt_util[,c(1:5, 10:13, 27)], factor)
+loadData <- function() {
 
-mqt_util$YEAR <- as.POSIXct(strptime(paste0(as.character(mqt_util$YEAR), '0101'), format = '%Y%m%d'))
-mqt_util$YEARMONTH <- as.POSIXct(strptime(paste0(as.character(mqt_util$YEARMONTH), '01'), format = '%Y%m%d'))
+  mqt_util <- mqt_utilization
+  mqt_util[,c(1:5, 10:13, 27)] <- lapply(mqt_util[,c(1:5, 10:13, 27)], as.character)
+  mqt_util[,c(1:5, 10:13, 27)] <- lapply(mqt_util[,c(1:5, 10:13, 27)], factor)
+  
+  mqt_util$YEAR <- as.POSIXct(strptime(paste0(as.character(mqt_util$YEAR), '0101'), format = '%Y%m%d'))
+  mqt_util$YEARMONTH <- as.POSIXct(strptime(paste0(as.character(mqt_util$YEARMONTH), '01'), format = '%Y%m%d'))
 
-util_YM_USER <- mqt_util %>% 
-  filter(SUMMARY == 41) %>% 
-  group_by(YEARMONTH,USER_ID) %>% 
-  summarise(count = n(), 
-            t_bill = sum(TRACKED_BILLABLE), 
-            t_inv = sum(TRACKED_INVESTMENT), 
-            exp_bill = sum(EXPECTED_BILLABLE)) %>% 
-  mutate(util_bill = (t_bill + t_inv)/exp_bill) %>% 
-  ungroup() %>% 
-  arrange(YEARMONTH, USER_ID)
-
+}
 
 util_ex <- 
 ggplot(aes(x = factor(YEARMONTH), 
@@ -48,7 +41,7 @@ ggplot(aes(x = factor(YEARMONTH),
                         t_inv = sum(TRACKED_INVESTMENT), 
                         exp_bill = sum(EXPECTED_BILLABLE)) %>% 
               mutate(util_bill = (t_bill + t_inv)/exp_bill) %>% 
-              ungroup) +
+              ungroup()) +
   theme(panel.background = element_rect(fill =NA),
         panel.grid.major = element_line(colour = '#F6F6F6'),
         axis.line = element_line(colour = '#BDBDBD')) + 
