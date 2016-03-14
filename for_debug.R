@@ -41,6 +41,10 @@ loadData <- function() {
   org$ORG_ID <- factor(org$ORG_ID)
   geo$GEO_ID <- factor(geo$GEO_ID)
   user$USER_ID <- factor(user$USER_ID)
+  dept$DEPT_NAME <- as.character(dept$DEPT_NAME)
+  org$ORG_NAME <- as.character(org$ORG_NAME)
+  geo$GEO_NAME <- as.character(geo$GEO_NAME)
+  user$USER_NAME <- as.character(user$USER_NAME)
   
   # used groupings
   
@@ -62,9 +66,11 @@ loadData <- function() {
   
   # 237 userov na yearmonth bolo v roznych departmentoch
   
+  return(df_util)
+  
 }
 
-# loadData()
+df_util <- loadData()
 
 # http://stackoverflow.com/questions/21435139/combine-geom-boxplot-with-geom-line
 # https://github.com/rstudio/shiny/issues/678
