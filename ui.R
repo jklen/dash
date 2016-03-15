@@ -1,29 +1,64 @@
 
 library(shiny) # load shiny at beginning at both scripts
-library(plotly)
 library(ggplot2)
 library(dplyr)
 
-shinyUI(pageWithSidebar( # standard shiny layout, controls on the
-  # left, output on the right
+shinyUI(pageWithSidebar(
   
   headerPanel("Utilization"), 
   
-  sidebarPanel( 
+  sidebarPanel(
+    
+    dateRangeInput(inputId = 'date_range',
+                   label = 'Select date range',
+                   weekstart = 1,
+                   start = now() - months(13),
+                   end = max(df_util$YEARMONTH),
+                   min = min(df_util$YEARMONTH),
+                   max = max(df_util$YEARMONTH)
+      
+    ),
+    
+    sliderInput(inputId = 'util_value',
+                label = 'Utilization between',
+                min = 0,
+                max = ceiling(max(df_util$util_bill)),
+                value = c(0, ceiling(max(df_util$util_bill))),
+                round = -2,
+                step = 0.01
+    ),
     
     radioButtons(inputId = "grouping",
               label = "Select grouping", 
-              choices = c('Geo',
-                          'Organization',
-                          'Department',
-                          'User')
+              choices = c('Geo' = 'GEO_NAME',
+                          'Organization' = 'ORG_NAME',
+                          'Department' = 'DPT_NAME',
+                          'User' = 'USER_NAME')
     ),
     
-    div(style = 'height: 220px; overflow:scroll', uiOutput('reac_units'))
+    div(style = 'height: 220px; overflow:scroll', uiOutput('reac_units')),
+    
+    checkboxInput(inputId = 'check_uplevel',
+                  label = 'Visualize level above',
+                  value = F
+    )
   ),
   
   mainPanel(
     
-    plotOutput("utilization")
+    tabsetPanel(
+    
+      tabPanel('Utilization', plotOutput("utilization_YM"),
+               plotOutput('utilization_selected'),
+               dataTableOutput('utilization_users')
+      ),
+      
+      tabPanel('QA approval rate', plotOutput('QA approval rate')
+      
+      )
+      
+    )
   )
 ))
+
+# filtre - date_range, util_value, reac_units -> grouping - grouping -> union - check_uplevel

@@ -46,7 +46,7 @@ loadData <- function() {
   geo$GEO_NAME <- as.character(geo$GEO_NAME)
   user$USER_NAME <- as.character(user$USER_NAME)
   
-  # used groupings
+  # used groupings (41 - je tam aj rola)
   
   df_util <- mqt_util %>%
     filter(SUMMARY == 41) %>%
@@ -61,7 +61,8 @@ loadData <- function() {
     inner_join(user, by = 'USER_ID') %>%
     select(GEO_ID, GEO_NAME, DEPT_ID, DEPT_NAME, ORG_ID, ORG_NAME, USER_ID, USER_NAME,
            YEARMONTH, t_bill, t_inv, exp_bill, util_bill) %>%
-    filter(util_bill > 0) %>%
+    #filter(util_bill > 0) %>%
+    filter(!is.na(util_bill)) %>%
     ungroup()
   
   # 237 userov na yearmonth bolo v roznych departmentoch
