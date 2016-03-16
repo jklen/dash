@@ -75,3 +75,6 @@ df_util <- loadData()
 
 # http://stackoverflow.com/questions/21435139/combine-geom-boxplot-with-geom-line
 # https://github.com/rstudio/shiny/issues/678
+# http://deanattali.com/2015/03/29/ggExtra-r-package/
+# http://shinyapps.org/apps/RGraphCompendium/index.php
+# http://stackoverflow.com/questions/21388845/ggplot-arranging-boxplots-of-multiple-y-variables-for-each-group-of-a-continuou

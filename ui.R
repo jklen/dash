@@ -1,7 +1,10 @@
 
-library(shiny) # load shiny at beginning at both scripts
+library(shiny)
 library(ggplot2)
 library(dplyr)
+library(ggExtra)
+library(lubridate)
+
 
 shinyUI(pageWithSidebar(
   
@@ -32,7 +35,7 @@ shinyUI(pageWithSidebar(
               label = "Select grouping", 
               choices = c('Geo' = 'GEO_NAME',
                           'Organization' = 'ORG_NAME',
-                          'Department' = 'DPT_NAME',
+                          'Department' = 'DEPT_NAME',
                           'User' = 'USER_NAME')
     ),
     

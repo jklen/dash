@@ -3,8 +3,9 @@ library(shiny)
 library(ggplot2)
 library(dplyr)
 library(ggExtra)
+library(lubridate)
 
-# data load and prepare
+# data load
 
 load('.Rdata')
 
@@ -35,7 +36,7 @@ shinyServer(function(input, output) {
         units <- unique(df_util$ORG_NAME) 
       } else {
         
-        if (input$grouping == 'DPT_NAME'){
+        if (input$grouping == 'DEPT_NAME'){
           units <- unique(df_util$DEPT_NAME) 
         } else {
           units <- unique(df_util$USER_NAME) 
@@ -43,7 +44,7 @@ shinyServer(function(input, output) {
       }
     }
     
-    cat(file=stderr(), "selected grouping - ", input$grouping) # vypise do konzoly
+    #cat(file=stderr(), "selected grouping - ", input$grouping) # vypise do konzoly
 
   units  
     
@@ -56,41 +57,100 @@ shinyServer(function(input, output) {
     df_util_reac <- df_util[between(df_util$YEARMONTH, as.POSIXct(input$date_range[1]), as.POSIXct(input$date_range[2])),]
     
     df_util_reac <- df_util_reac[between(df_util_reac$util_bill, input$util_value[1], input$util_value[2]),]
+
     
-    if (!is.null(pass_units())){
+     cat(file=stderr(), " checkbox items - ", input$units)
+    # cat(file=stderr(), " checkbox null?? - ", is.null(input$units))
+    # cat(file=stderr(), "  df rows - ", nrow(df_util_reac))
     
-      df_util_reac <- ifelse(input$grouping == 'Geo', df_util_reac[df_util_reac$GEO_NAME %in% pass_units(),],
-                        ifelse(input$grouping == 'Organization', df_util_reac[df_util_reac$ORG_NAME %in% pass_units(),],
-                          ifelse(input$grouping == 'Department', df_util_reac[df_util_reac$DEPT_NAME %in% pass_units(),],
-                                 df_util_reac[df_util_reac$USER_NAME %in% pass_units(),]
-                          )
-                        )
-                      )
+    if(!is.null(input$units)){
+      
+      if (input$grouping == 'GEO_NAME'){
+
+        df_util_reac <- df_util_reac[df_util_reac$GEO_NAME %in% input$units,]
+
+      } else {
+        
+        if (input$grouping == 'ORG_NAME'){
+          
+          df_util_reac <- df_util_reac[df_util_reac$ORG_NAME %in% input$units,]
+
+        } else {
+          
+          if (input$grouping == 'DEPT_NAME'){
+            
+            df_util_reac <- df_util_reac[df_util_reac$DEPT_NAME %in% input$units,]
+            
+          } else {
+            
+            if (input$grouping == 'USER_NAME'){
+              
+              df_util_reac <- df_util_reac[df_util_reac$USER_NAME %in% input$units,]
+              
+            }
+            
+          }
+          
+        }
+        
+      }
+      
     }
+    
     
     # group reactive df based on selected grouping
     
-    groups <- ifelse(input$grouping == 'USER_NAME', c('YEARMONTH', 'USER_NAME'), c(input$grouping, 'YEARMONTH', 'USER_NAME'))
+    if (input$grouping == 'USER_NAME'){
+      
+      groups_toPlot <- c('YEARMONTH', 'USER_NAME')
+      
+    } else {
+      
+      groups_toPlot <- c(input$grouping, 'YEARMONTH', 'USER_NAME') 
+      
+    }
+    
+    #cat(file=stderr(), " chart input class - ", class(df_util_reac))
     
     df_util_reac <- df_util_reac %>% 
-      group_by_(.dots = lapply(groups, as.symbol)) %>%
+      group_by_(.dots = lapply(groups_toPlot, as.symbol)) %>%
       summarise(t_bill = sum(t_bill), 
                 t_inv = sum(t_inv), 
                 exp_bill = sum(exp_bill)) %>%
       mutate(util_bill = (t_bill + t_inv)/exp_bill) %>%
       ungroup()
     
+    #cat(file=stderr(), " rows of df for chart input ", nrow(df_util_reac))
+    
     # if selected, append data from level above (except for geo)
     
-    if (input$check_uplevel == T){
+    df_util_reac
+    
+  })
+  
+  # plot to output
+  
+  output$utilization_YM <- renderPlot({
+    
+    if (!is.null(input$units)){
       
+      if (input$grouping != 'USER_NAME'){
       
+        plot_util_YM <- ggplot(aes_string(y = 'util_bill', fill = input$grouping), data = pass_df_util()) + 
+          geom_boxplot(aes(x = factor(YEARMONTH)))
+        
+      } else {
+        
+        plot_util_YM <- ggplot(aes(x = YEARMONTH, y = util_bill, color = USER_NAME), data = pass_df_util()) +
+          geom_line()
+      
+      }
+      
+      print(plot_util_YM)
       
     }
     
   })
-  
-  
   
   
 })
@@ -109,6 +169,7 @@ shinyServer(function(input, output) {
 # par globalnych metrik
   # utilizacia  - podla geo -> dept -> org -> user 41
   #             - hlavny graf - boxplot
+  #             ! namiesto checkboxov pre dpt a usera hodit to s vyhladavanim
   #             - pre boxplot - checkbox, ci ukazat box pre 1 level nad (pre porovnanie napr. danej organizacie a gea pod ktorym je),
   #                 nebude zahrnuty do marginal plotu
   #             - brushing  bez zoomu ako filter do tabulky pod - utilizacia userov
