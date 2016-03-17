@@ -78,3 +78,5 @@ df_util <- loadData()
 # http://deanattali.com/2015/03/29/ggExtra-r-package/
 # http://shinyapps.org/apps/RGraphCompendium/index.php
 # http://stackoverflow.com/questions/21388845/ggplot-arranging-boxplots-of-multiple-y-variables-for-each-group-of-a-continuou
+# https://nsaunders.wordpress.com/2013/02/26/rggplot2-tip-aes_string/
+# http://stackoverflow.com/questions/21468380/overlay-geom-points-on-geom-boxplotfill-group

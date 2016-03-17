@@ -3,13 +3,14 @@ library(shiny)
 library(ggplot2)
 library(dplyr)
 library(ggExtra)
+library(gridExtra)
 library(lubridate)
 
 # data load
 
 load('.Rdata')
 
-shinyServer(function(input, output) {
+shinyServer(function(input, output, session) {
   
   # rendering checkbox group based on reactive vector of units
   
@@ -17,9 +18,11 @@ shinyServer(function(input, output) {
     
     units_list <- pass_units()
       
-    checkboxGroupInput(inputId = 'units',
+    selectInput(inputId = 'units',
                        label = input$grouping,
-                       choices = units_list
+                       choices = units_list,
+                       selectize = T,
+                       multiple = T
                        )
       
   })
@@ -50,16 +53,16 @@ shinyServer(function(input, output) {
     
   })
   
-  # creating reactive df based on date, value, selected units
+  # creating reactive dataframe based on date, value, selected units
   
   pass_df_util <- reactive({
     
-    df_util_reac <- df_util[between(df_util$YEARMONTH, as.POSIXct(input$date_range[1]), as.POSIXct(input$date_range[2])),]
+    df_util_reac <- df_util[between(df_util$YEARMONTH, as.POSIXct(input$date_range[1]) - days(1), as.POSIXct(input$date_range[2])),]
     
     df_util_reac <- df_util_reac[between(df_util_reac$util_bill, input$util_value[1], input$util_value[2]),]
 
     
-     cat(file=stderr(), " checkbox items - ", input$units)
+    # cat(file=stderr(), " checkbox items - ", input$units)
     # cat(file=stderr(), " checkbox null?? - ", is.null(input$units))
     # cat(file=stderr(), "  df rows - ", nrow(df_util_reac))
     
@@ -98,7 +101,7 @@ shinyServer(function(input, output) {
     }
     
     
-    # group reactive df based on selected grouping
+    # group reactive dataframe based on selected grouping
     
     if (input$grouping == 'USER_NAME'){
       
@@ -130,6 +133,21 @@ shinyServer(function(input, output) {
   
   # plot to output
   
+  # pTop <- ggplot(mtcars, aes(x = wt)) +
+  #   geom_histogram()
+  # pRight <- ggplot(mtcars, aes(x = mpg)) +
+  #   geom_histogram() + coord_flip()
+  # pEmpty <- ggplot(mtcars, aes(x = wt, y = mpg)) +
+  #   geom_blank() +
+  #   theme(axis.text = element_blank(),
+  #         axis.title = element_blank(),
+  #         line = element_blank(),
+  #         panel.background = element_blank())
+  # 
+  # grid.arrange(pTop, pEmpty, pMain, pRight,
+  #              ncol = 2, nrow = 2, widths = c(3, 1), heights = c(1, 3))
+  #########
+  
   output$utilization_YM <- renderPlot({
     
     if (!is.null(input$units)){
@@ -137,7 +155,25 @@ shinyServer(function(input, output) {
       if (input$grouping != 'USER_NAME'){
       
         plot_util_YM <- ggplot(aes_string(y = 'util_bill', fill = input$grouping), data = pass_df_util()) + 
-          geom_boxplot(aes(x = factor(YEARMONTH)))
+          geom_boxplot(aes(x = factor(YEARMONTH))) +
+          geom_point(aes(x = factor(YEARMONTH)), 
+                     position=position_dodge(width=0.75), 
+                     fun.y = mean, stat = 'summary', shape = 1) +
+          geom_point(aes(x = factor(YEARMONTH)), 
+                     position=position_dodge(width=0.75), 
+                     fun.y = quantile, fun.args=list(probs=0.1),
+                    stat = 'summary', shape = 4) +
+          geom_point(aes(x = factor(YEARMONTH)), 
+                     position=position_dodge(width=0.75), 
+                     fun.y = quantile, fun.args=list(probs=0.9),
+                    stat = 'summary', shape = 4) +
+          theme(panel.background = element_rect(fill =NA),
+                panel.grid.major = element_line(colour = '#F6F6F6'),
+                axis.line = element_line(colour = '#BDBDBD'))
+        
+        
+        
+        #plot_util_main <- grid.arrange(plot_util_YM, plot_util_YM_marg, nrow = 1, ncol = 2, heights = 4, widths = c(4,1))
         
       } else {
         
@@ -146,9 +182,49 @@ shinyServer(function(input, output) {
       
       }
       
-      print(plot_util_YM)
+      plot_util_YM
       
     }
+    
+  })
+  
+  output$Utilization_marginal <- renderPlot({
+    
+    if (!is.null(input$units)){
+    
+      plot_util_YM_marg <- ggplot(aes(x = util_bill), data = pass_df_util()) +
+        geom_histogram(fill = '#F79420', color = 'black') +
+        geom_vline(xintercept = mean(pass_df_util()$util_bill)) +
+        coord_flip() +
+        geom_vline(xintercept = as.numeric(mean(pass_df_util()$util_bill, na.rm = T)),
+                   color = 'red') +
+        geom_vline(xintercept = as.numeric(median(pass_df_util()$util_bill, na.rm = T)),
+                   color = 'blue') +
+        geom_vline(xintercept = as.numeric(quantile(pass_df_util()$util_bill,
+                                                    probs = 0.25, na.rm = T)),
+                   linetype = 2, color = 'blue') +
+        geom_vline(xintercept = as.numeric(quantile(pass_df_util()$util_bill,
+                                                    probs = 0.75, na.rm = T)),
+                   linetype = 2, color = 'blue') +
+        geom_vline(xintercept = as.numeric(quantile(pass_df_util()$util_bill,
+                                                    probs = 0.1, na.rm = T)),
+                   linetype = 3) +
+        geom_vline(xintercept = as.numeric(quantile(pass_df_util()$util_bill,
+                                                    probs = 0.9, na.rm = T)),
+                   linetype = 3) +
+        theme(panel.background = element_rect(fill =NA),
+              panel.grid.major = element_line(colour = '#F6F6F6'),
+              axis.line = element_line(colour = '#BDBDBD'))
+    
+    plot_util_YM_marg
+    
+    }
+    
+  })
+  
+  output$clicked <- renderPrint ({
+    
+    str(input$util_YM_click)
     
   })
   
@@ -170,6 +246,9 @@ shinyServer(function(input, output) {
   # utilizacia  - podla geo -> dept -> org -> user 41
   #             - hlavny graf - boxplot
   #             ! namiesto checkboxov pre dpt a usera hodit to s vyhladavanim
+  #             - ciara median globalnej utilizacie v mesiaci
+  #             - nejako vizualizovat, alebo hodit do tabulky o kolko percent dany subset snizuje/zvysuje median globalnej
+  #                 utilizacie v mesiaci a celkovo, mozno aj utilizacie levelu nad, percento hodnot pod medianom
   #             - pre boxplot - checkbox, ci ukazat box pre 1 level nad (pre porovnanie napr. danej organizacie a gea pod ktorym je),
   #                 nebude zahrnuty do marginal plotu
   #             - brushing  bez zoomu ako filter do tabulky pod - utilizacia userov

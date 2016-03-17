@@ -6,19 +6,20 @@ library(ggExtra)
 library(lubridate)
 
 
-shinyUI(pageWithSidebar(
+shinyUI(fluidPage(
   
-  headerPanel("Utilization"), 
+  titlePanel("Utilization"),
   
   sidebarPanel(
     
     dateRangeInput(inputId = 'date_range',
                    label = 'Select date range',
-                   weekstart = 1,
-                   start = now() - months(13),
+                   weekstart = 0,
+                   start = now() - months(7),
                    end = max(df_util$YEARMONTH),
                    min = min(df_util$YEARMONTH),
-                   max = max(df_util$YEARMONTH)
+                   max = max(df_util$YEARMONTH),
+                   startview = 'year'
       
     ),
     
@@ -26,7 +27,7 @@ shinyUI(pageWithSidebar(
                 label = 'Utilization between',
                 min = 0,
                 max = ceiling(max(df_util$util_bill)),
-                value = c(0, ceiling(max(df_util$util_bill))),
+                value = c(0.01, ceiling(max(df_util$util_bill))),
                 round = -2,
                 step = 0.01
     ),
@@ -49,11 +50,26 @@ shinyUI(pageWithSidebar(
   
   mainPanel(
     
-    tabsetPanel(
+    tabsetPanel(id = 'tabs_1',
     
-      tabPanel('Utilization', plotOutput("utilization_YM"),
-               plotOutput('utilization_selected'),
-               dataTableOutput('utilization_users')
+      tabPanel('Utilization',
+               
+              fluidRow(column(10, plotOutput("utilization_YM", 
+                            click = clickOpts(id="util_YM_click"))),
+                       column(2, plotOutput('Utilization_marginal',
+                            click = clickOpts(id = 'util_marginal_click')))
+              ),
+              
+              fluidRow(
+                verbatimTextOutput('clicked'),
+                plotOutput('utilization_selected'),
+                
+                
+                dataTableOutput('utilization_users')
+                
+              )
+      
+               
       ),
       
       tabPanel('QA approval rate', plotOutput('QA approval rate')
@@ -64,4 +80,20 @@ shinyUI(pageWithSidebar(
   )
 ))
 
+# 
+# tabsetPanel(id = 'tabs1',
+#             tabPanel("main",
+#                      fluidRow(
+#                        column(8,
+#                               plotOutput('plot1')),
+#                        column(4,
+#                               p('2nd column'))),
+#                      fluidRow(
+#                        p("2nd row of viewing area"))
+#             ),
+#             
+#             tabPanel("second",
+#                      p("main viewing area")),
+#             tabPanel("third",
+#                      p('main viewing area')
 # filtre - date_range, util_value, reac_units -> grouping - grouping -> union - check_uplevel
