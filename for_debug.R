@@ -80,3 +80,6 @@ df_util <- loadData()
 # http://stackoverflow.com/questions/21388845/ggplot-arranging-boxplots-of-multiple-y-variables-for-each-group-of-a-continuou
 # https://nsaunders.wordpress.com/2013/02/26/rggplot2-tip-aes_string/
 # http://stackoverflow.com/questions/21468380/overlay-geom-points-on-geom-boxplotfill-group
+# http://stackoverflow.com/questions/6957549/overlaying-histograms-with-ggplot2-in-r
+# http://stackoverflow.com/questions/6667091/pivot-table-like-output-in-r alebo DPLYR, TIDYR + datatables? pre crosstaby
+# http://rstudio.github.io/DT/ - datatables

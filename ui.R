@@ -42,29 +42,34 @@ shinyUI(fluidPage(
     
     div(style = 'height: 220px; overflow:scroll', uiOutput('reac_units')),
     
-    checkboxInput(inputId = 'check_uplevel',
-                  label = 'Visualize level above',
-                  value = F
-    )
+    selectInput(inputId = 'marginal_vis',
+                  label = 'Marginal - categories as:',
+                  choices = c('Boxplots', 'Histograms'),
+                  multiple = F,
+                  selected = 'Boxplots'
+    ),
+    
+    uiOutput('marg_cat_hist_type')
   ),
   
   mainPanel(
     
     tabsetPanel(id = 'tabs_1',
     
-      tabPanel('Utilization',
+      tabPanel('Main',
                
-              fluidRow(column(10, plotOutput("utilization_YM", 
+              fluidRow(column(8, plotOutput("utilization_YM", 
                             click = clickOpts(id="util_YM_click"))),
-                       column(2, plotOutput('Utilization_marginal',
-                            click = clickOpts(id = 'util_marginal_click')))
+                       column(2, plotOutput('Utilization_marginal1',
+                            click = clickOpts(id = 'util_marginal1_click'))),
+                       column(2, plotOutput('Utilization_marginal2'))
               ),
               
               fluidRow(
+                
+                
+                rpivotTableOutput('pivot'),
                 verbatimTextOutput('clicked'),
-                plotOutput('utilization_selected'),
-                
-                
                 dataTableOutput('utilization_users')
                 
               )
@@ -72,8 +77,12 @@ shinyUI(fluidPage(
                
       ),
       
-      tabPanel('QA approval rate', plotOutput('QA approval rate')
+      tabPanel('Compare', plotOutput('QA approval rate')
       
+      ),
+      
+      tabPanel('User', plotOutput('utilization_user')
+               
       )
       
     )

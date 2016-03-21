@@ -1,5 +1,6 @@
 
 library(shiny)
+library(plotly)
 library(ggplot2)
 library(dplyr)
 library(ggExtra)
@@ -11,6 +12,23 @@ library(lubridate)
 load('.Rdata')
 
 shinyServer(function(input, output, session) {
+  
+  # rendering listbox for histogram marginal plot (overlaying or stacked)
+  
+  output$marg_cat_hist_type <- renderUI({
+    
+    if (input$marginal_vis == 'Histograms'){
+      
+      selectInput(inputId = 'marg_type',
+                  label = NULL,
+                  choices = c('Overlaying',
+                              'Stacked'),
+                  selected = 'Stacked'
+      )
+      
+    }
+    
+  })
   
   # rendering checkbox group based on reactive vector of units
   
@@ -133,21 +151,6 @@ shinyServer(function(input, output, session) {
   
   # plot to output
   
-  # pTop <- ggplot(mtcars, aes(x = wt)) +
-  #   geom_histogram()
-  # pRight <- ggplot(mtcars, aes(x = mpg)) +
-  #   geom_histogram() + coord_flip()
-  # pEmpty <- ggplot(mtcars, aes(x = wt, y = mpg)) +
-  #   geom_blank() +
-  #   theme(axis.text = element_blank(),
-  #         axis.title = element_blank(),
-  #         line = element_blank(),
-  #         panel.background = element_blank())
-  # 
-  # grid.arrange(pTop, pEmpty, pMain, pRight,
-  #              ncol = 2, nrow = 2, widths = c(3, 1), heights = c(1, 3))
-  #########
-  
   output$utilization_YM <- renderPlot({
     
     if (!is.null(input$units)){
@@ -171,10 +174,6 @@ shinyServer(function(input, output, session) {
                 panel.grid.major = element_line(colour = '#F6F6F6'),
                 axis.line = element_line(colour = '#BDBDBD'))
         
-        
-        
-        #plot_util_main <- grid.arrange(plot_util_YM, plot_util_YM_marg, nrow = 1, ncol = 2, heights = 4, widths = c(4,1))
-        
       } else {
         
         plot_util_YM <- ggplot(aes(x = YEARMONTH, y = util_bill, color = USER_NAME), data = pass_df_util()) +
@@ -188,11 +187,11 @@ shinyServer(function(input, output, session) {
     
   })
   
-  output$Utilization_marginal <- renderPlot({
+  output$Utilization_marginal1 <- renderPlot({
     
     if (!is.null(input$units)){
     
-      plot_util_YM_marg <- ggplot(aes(x = util_bill), data = pass_df_util()) +
+      plot_util_marg1 <- ggplot(aes(x = util_bill), data = pass_df_util()) +
         geom_histogram(fill = '#F79420', color = 'black') +
         geom_vline(xintercept = mean(pass_df_util()$util_bill)) +
         coord_flip() +
@@ -216,15 +215,79 @@ shinyServer(function(input, output, session) {
               panel.grid.major = element_line(colour = '#F6F6F6'),
               axis.line = element_line(colour = '#BDBDBD'))
     
-    plot_util_YM_marg
+    plot_util_marg1
     
+    }
+    
+  })
+  
+  output$Utilization_marginal2 <- renderPlot({
+    
+    if (!is.null(input$units)){
+      
+      if (input$marginal_vis == 'Boxplots'){
+        
+        plot_util_marg2 <- ggplot(aes_string(y = 'util_bill', x = input$grouping, fill = input$grouping), data = pass_df_util()) +
+          geom_boxplot() +
+          geom_point(fun.y = mean, stat = 'summary', shape = 1) +
+          geom_point(fun.y = quantile, fun.args=list(probs=0.1),
+                     stat = 'summary', shape = 4) +
+          geom_point(fun.y = quantile, fun.args=list(probs=0.9),
+                     stat = 'summary', shape = 4) +
+          theme(legend.position = 'none',
+                panel.background = element_rect(fill =NA),
+                panel.grid.major = element_line(colour = '#F6F6F6'),
+                axis.line = element_line(colour = '#BDBDBD'))
+        
+        plot_util_marg2
+        
+      
+      }else {
+        
+        if (input$marginal_vis == 'Histograms'){
+        
+          if (input$marg_type == 'Overlaying'){
+            
+            plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = pass_df_util()) +
+              geom_histogram(alpha = 0.4, position = 'identity') + 
+              coord_flip() +
+              theme(legend.position = 'none',
+                    panel.background = element_rect(fill =NA),
+                    panel.grid.major = element_line(colour = '#F6F6F6'),
+                    axis.line = element_line(colour = '#BDBDBD'))
+            
+            plot_util_marg2
+            
+          }else {
+            
+            if (input$marg_type == 'Stacked'){
+              
+              plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = pass_df_util()) +
+                geom_histogram() +
+                coord_flip() +
+                theme(legend.position = 'none',
+                      panel.background = element_rect(fill =NA),
+                      panel.grid.major = element_line(colour = '#F6F6F6'),
+                      axis.line = element_line(colour = '#BDBDBD'))
+              
+              plot_util_marg2
+              
+            }
+            
+          }
+          
+        }
+        
+      }
+      
     }
     
   })
   
   output$clicked <- renderPrint ({
     
-    str(input$util_YM_click)
+    input$util_YM_click
+    #cat(file=stderr(), " -------", input$marg_cat_hist_type)
     
   })
   
@@ -245,7 +308,7 @@ shinyServer(function(input, output, session) {
 # par globalnych metrik
   # utilizacia  - podla geo -> dept -> org -> user 41
   #             - hlavny graf - boxplot
-  #             ! namiesto checkboxov pre dpt a usera hodit to s vyhladavanim
+  #             * namiesto checkboxov pre dpt a usera hodit to s vyhladavanim
   #             - ciara median globalnej utilizacie v mesiaci
   #             - nejako vizualizovat, alebo hodit do tabulky o kolko percent dany subset snizuje/zvysuje median globalnej
   #                 utilizacie v mesiaci a celkovo, mozno aj utilizacie levelu nad, percento hodnot pod medianom
