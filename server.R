@@ -13,22 +13,7 @@ load('.Rdata')
 
 shinyServer(function(input, output, session) {
   
-  # rendering listbox for histogram marginal plot (overlaying or stacked)
   
-  output$marg_cat_hist_type <- renderUI({
-    
-    if (input$marginal_vis == 'Histograms'){
-      
-      selectInput(inputId = 'marg_type',
-                  label = NULL,
-                  choices = c('Overlaying',
-                              'Stacked'),
-                  selected = 'Stacked'
-      )
-      
-    }
-    
-  })
   
   # rendering checkbox group based on reactive vector of units
   
@@ -50,17 +35,17 @@ shinyServer(function(input, output, session) {
   pass_units <- reactive({
     
     if (input$grouping == 'GEO_NAME'){
-      units <- unique(df_util$GEO_NAME)
+      units <- unique(pass_df()$GEO_NAME)
     } else {
       
       if (input$grouping == 'ORG_NAME'){
-        units <- unique(df_util$ORG_NAME) 
+        units <- unique(pass_df()$ORG_NAME) 
       } else {
         
         if (input$grouping == 'DEPT_NAME'){
-          units <- unique(df_util$DEPT_NAME) 
+          units <- unique(pass_df()$DEPT_NAME) 
         } else {
-          units <- unique(df_util$USER_NAME) 
+          units <- unique(pass_df()$USER_NAME) 
         }
       }
     }
@@ -71,18 +56,23 @@ shinyServer(function(input, output, session) {
     
   })
   
+  # creating reactive dataframe based on date and value
+  
+  pass_df <- reactive({
+    
+    df_util_r <- df_util[between(df_util$YEARMONTH, as.POSIXct(input$date_range[1]) - days(1), as.POSIXct(input$date_range[2])),]
+    
+    df_util_r <- df_util_r[between(df_util_r$util_bill, input$util_value[1], input$util_value[2]),]
+    
+    df_util_r
+    
+  })
+  
   # creating reactive dataframe based on date, value, selected units
   
   pass_df_util <- reactive({
-    
-    df_util_reac <- df_util[between(df_util$YEARMONTH, as.POSIXct(input$date_range[1]) - days(1), as.POSIXct(input$date_range[2])),]
-    
-    df_util_reac <- df_util_reac[between(df_util_reac$util_bill, input$util_value[1], input$util_value[2]),]
-
-    
-    # cat(file=stderr(), " checkbox items - ", input$units)
-    # cat(file=stderr(), " checkbox null?? - ", is.null(input$units))
-    # cat(file=stderr(), "  df rows - ", nrow(df_util_reac))
+   
+    df_util_reac <- pass_df()
     
     if(!is.null(input$units)){
       
@@ -130,9 +120,7 @@ shinyServer(function(input, output, session) {
       groups_toPlot <- c(input$grouping, 'YEARMONTH', 'USER_NAME') 
       
     }
-    
-    #cat(file=stderr(), " chart input class - ", class(df_util_reac))
-    
+
     df_util_reac <- df_util_reac %>% 
       group_by_(.dots = lapply(groups_toPlot, as.symbol)) %>%
       summarise(t_bill = sum(t_bill), 
@@ -140,13 +128,29 @@ shinyServer(function(input, output, session) {
                 exp_bill = sum(exp_bill)) %>%
       mutate(util_bill = (t_bill + t_inv)/exp_bill) %>%
       ungroup()
-    
-    #cat(file=stderr(), " rows of df for chart input ", nrow(df_util_reac))
-    
-    # if selected, append data from level above (except for geo)
-    
+
     df_util_reac
     
+  })
+  
+  
+  # for plot zooming
+  
+  range <- reactiveValues(y = NULL)
+  
+  observeEvent(input$mainPlot_dblClick, {
+    
+    brush <- input$mainPlot_brush
+    
+    if (!is.null(brush)){
+      
+      range$y <- c(brush$ymin, brush$ymax)
+      
+    } else {
+      
+      range$y <- NULL 
+      
+    }
   })
   
   # plot to output
@@ -174,11 +178,19 @@ shinyServer(function(input, output, session) {
                 panel.grid.major = element_line(colour = '#F6F6F6'),
                 axis.line = element_line(colour = '#BDBDBD'))
         
+        
+        
       } else {
         
         plot_util_YM <- ggplot(aes(x = YEARMONTH, y = util_bill, color = USER_NAME), data = pass_df_util()) +
           geom_line()
       
+      }
+      
+      if (!is.null(range)){
+        
+        plot_util_YM <- plot_util_YM + coord_cartesian(ylim = range$y)
+        
       }
       
       plot_util_YM
@@ -194,7 +206,6 @@ shinyServer(function(input, output, session) {
       plot_util_marg1 <- ggplot(aes(x = util_bill), data = pass_df_util()) +
         geom_histogram(fill = '#F79420', color = 'black') +
         geom_vline(xintercept = mean(pass_df_util()$util_bill)) +
-        coord_flip() +
         geom_vline(xintercept = as.numeric(mean(pass_df_util()$util_bill, na.rm = T)),
                    color = 'red') +
         geom_vline(xintercept = as.numeric(median(pass_df_util()$util_bill, na.rm = T)),
@@ -215,8 +226,14 @@ shinyServer(function(input, output, session) {
               panel.grid.major = element_line(colour = '#F6F6F6'),
               axis.line = element_line(colour = '#BDBDBD'))
     
-    plot_util_marg1
-    
+      if (!is.null(range)){
+        
+        plot_util_marg1 <- plot_util_marg1 + coord_flip(xlim = range$y)
+        
+      }
+      
+      plot_util_marg1
+     
     }
     
   })
@@ -225,7 +242,7 @@ shinyServer(function(input, output, session) {
     
     if (!is.null(input$units)){
       
-      if (input$marginal_vis == 'Boxplots'){
+      if (input$marginalVis == 'Boxplots'){
         
         plot_util_marg2 <- ggplot(aes_string(y = 'util_bill', x = input$grouping, fill = input$grouping), data = pass_df_util()) +
           geom_boxplot() +
@@ -239,36 +256,53 @@ shinyServer(function(input, output, session) {
                 panel.grid.major = element_line(colour = '#F6F6F6'),
                 axis.line = element_line(colour = '#BDBDBD'))
         
+        if (!is.null(range)){
+          
+          plot_util_marg2 <- plot_util_marg2 + coord_cartesian(ylim = range$y)
+          
+        }
+        
         plot_util_marg2
         
       
       }else {
         
-        if (input$marginal_vis == 'Histograms'){
+        if (input$marginalVis == 'Histograms'){
         
-          if (input$marg_type == 'Overlaying'){
+          if (input$marg_cat_hist_type == 'Overlaying'){
             
             plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = pass_df_util()) +
               geom_histogram(alpha = 0.4, position = 'identity') + 
-              coord_flip() +
               theme(legend.position = 'none',
                     panel.background = element_rect(fill =NA),
                     panel.grid.major = element_line(colour = '#F6F6F6'),
                     axis.line = element_line(colour = '#BDBDBD'))
             
+            if (!is.null(range)){
+              
+              plot_util_marg2 <- plot_util_marg2 + coord_flip(xlim = range$y)
+              
+            }
+            
             plot_util_marg2
             
           }else {
             
-            if (input$marg_type == 'Stacked'){
+            if (input$marg_cat_hist_type == 'Stacked'){
               
               plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = pass_df_util()) +
                 geom_histogram() +
-                coord_flip() +
+                #coord_flip() +
                 theme(legend.position = 'none',
                       panel.background = element_rect(fill =NA),
                       panel.grid.major = element_line(colour = '#F6F6F6'),
                       axis.line = element_line(colour = '#BDBDBD'))
+              
+              if (!is.null(range)){
+                
+                plot_util_marg2 <- plot_util_marg2 + coord_flip(xlim = range$y)
+                
+              }
               
               plot_util_marg2
               
@@ -284,10 +318,10 @@ shinyServer(function(input, output, session) {
     
   })
   
-  output$clicked <- renderPrint ({
+  output$test <- renderPrint ({
     
-    input$util_YM_click
-    #cat(file=stderr(), " -------", input$marg_cat_hist_type)
+    str(input$mainPlot_click)
+    str(input$mainPlot_brush)
     
   })
   
@@ -307,6 +341,7 @@ shinyServer(function(input, output, session) {
   # WB  - report EM Web builder?
 # par globalnych metrik
   # utilizacia  - podla geo -> dept -> org -> user 41
+  #             - datatable mainPlot - pre kazdu unit a yearmonth - median, priemer, 1 kvartil, 3 kvartil, count, percento z viditelneho
   #             - hlavny graf - boxplot
   #             * namiesto checkboxov pre dpt a usera hodit to s vyhladavanim
   #             - ciara median globalnej utilizacie v mesiaci

@@ -83,3 +83,4 @@ df_util <- loadData()
 # http://stackoverflow.com/questions/6957549/overlaying-histograms-with-ggplot2-in-r
 # http://stackoverflow.com/questions/6667091/pivot-table-like-output-in-r alebo DPLYR, TIDYR + datatables? pre crosstaby
 # http://rstudio.github.io/DT/ - datatables
+# https://gallery.shinyapps.io/105-plot-interaction-zoom/

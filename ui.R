@@ -42,14 +42,21 @@ shinyUI(fluidPage(
     
     div(style = 'height: 220px; overflow:scroll', uiOutput('reac_units')),
     
-    selectInput(inputId = 'marginal_vis',
-                  label = 'Marginal - categories as:',
+    
+    selectInput(inputId = 'marginalVis',
+                  label = 'Marginal plot',
                   choices = c('Boxplots', 'Histograms'),
                   multiple = F,
                   selected = 'Boxplots'
     ),
     
-    uiOutput('marg_cat_hist_type')
+    conditionalPanel(
+      condition = "input.marginalVis == 'Histograms'",
+      selectInput('marg_cat_hist_type',
+             label = NULL,
+             choices = c('Overlaying', 'Stacked'))
+    )
+    
   ),
   
   mainPanel(
@@ -59,7 +66,10 @@ shinyUI(fluidPage(
       tabPanel('Main',
                
               fluidRow(column(8, plotOutput("utilization_YM", 
-                            click = clickOpts(id="util_YM_click"))),
+                            dblclick = 'mainPlot_dblClick',
+                            click = 'mainPlot_click',
+                            brush = brushOpts(id = 'mainPlot_brush',
+                                              direction = 'y'))),
                        column(2, plotOutput('Utilization_marginal1',
                             click = clickOpts(id = 'util_marginal1_click'))),
                        column(2, plotOutput('Utilization_marginal2'))
@@ -68,8 +78,8 @@ shinyUI(fluidPage(
               fluidRow(
                 
                 
-                rpivotTableOutput('pivot'),
-                verbatimTextOutput('clicked'),
+                dataTableOutput('pivot'),
+                verbatimTextOutput('test'),
                 dataTableOutput('utilization_users')
                 
               )
