@@ -1,10 +1,10 @@
 
 library(shiny)
+library(plotly)
 library(ggplot2)
 library(dplyr)
-library(ggExtra)
 library(lubridate)
-
+library(rpivotTable)
 
 shinyUI(fluidPage(
   
@@ -45,16 +45,9 @@ shinyUI(fluidPage(
     
     selectInput(inputId = 'marginalVis',
                   label = 'Marginal plot',
-                  choices = c('Boxplots', 'Histograms'),
+                  choices = c('Boxplots', 'Stacked histograms', 'Overlaid histograms'),
                   multiple = F,
                   selected = 'Boxplots'
-    ),
-    
-    conditionalPanel(
-      condition = "input.marginalVis == 'Histograms'",
-      selectInput('marg_cat_hist_type',
-             label = NULL,
-             choices = c('Overlaying', 'Stacked'))
     )
     
   ),
@@ -77,8 +70,6 @@ shinyUI(fluidPage(
               
               fluidRow(
                 
-                
-                dataTableOutput('pivot'),
                 verbatimTextOutput('test'),
                 dataTableOutput('utilization_users')
                 
@@ -87,7 +78,7 @@ shinyUI(fluidPage(
                
       ),
       
-      tabPanel('Compare', plotOutput('QA approval rate')
+      tabPanel('Pivot', rpivotTableOutput('main_table')
       
       ),
       

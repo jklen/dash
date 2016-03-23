@@ -3,9 +3,8 @@ library(shiny)
 library(plotly)
 library(ggplot2)
 library(dplyr)
-library(ggExtra)
-library(gridExtra)
 library(lubridate)
+library(rpivotTable)
 
 # data load
 
@@ -56,7 +55,7 @@ shinyServer(function(input, output, session) {
     
   })
   
-  # creating reactive dataframe based on date and value
+  # creating reactive dataframe based on date and value (units in prompt updated)
   
   pass_df <- reactive({
     
@@ -68,7 +67,7 @@ shinyServer(function(input, output, session) {
     
   })
   
-  # creating reactive dataframe based on date, value, selected units
+  # creating reactive dataframe based on selected units
   
   pass_df_util <- reactive({
    
@@ -265,14 +264,31 @@ shinyServer(function(input, output, session) {
         plot_util_marg2
         
       
-      }else {
+      } else {
         
-        if (input$marginalVis == 'Histograms'){
-        
-          if (input$marg_cat_hist_type == 'Overlaying'){
+        if (input$marginalVis == 'Overlaid histograms'){
+
+            plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = pass_df_util()) +
+            geom_histogram(alpha = 0.4, position = 'identity') + 
+            theme(legend.position = 'none',
+                  panel.background = element_rect(fill =NA),
+                  panel.grid.major = element_line(colour = '#F6F6F6'),
+                  axis.line = element_line(colour = '#BDBDBD'))
+            
+            if (!is.null(range)){
+              
+              plot_util_marg2 <- plot_util_marg2 + coord_flip(xlim = range$y)
+              
+            }
+            
+            plot_util_marg2
+            
+        } else {
+            
+          if (input$marginalVis == 'Stacked histograms'){
             
             plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = pass_df_util()) +
-              geom_histogram(alpha = 0.4, position = 'identity') + 
+              geom_histogram() +
               theme(legend.position = 'none',
                     panel.background = element_rect(fill =NA),
                     panel.grid.major = element_line(colour = '#F6F6F6'),
@@ -285,28 +301,8 @@ shinyServer(function(input, output, session) {
             }
             
             plot_util_marg2
+              
             
-          }else {
-            
-            if (input$marg_cat_hist_type == 'Stacked'){
-              
-              plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = pass_df_util()) +
-                geom_histogram() +
-                #coord_flip() +
-                theme(legend.position = 'none',
-                      panel.background = element_rect(fill =NA),
-                      panel.grid.major = element_line(colour = '#F6F6F6'),
-                      axis.line = element_line(colour = '#BDBDBD'))
-              
-              if (!is.null(range)){
-                
-                plot_util_marg2 <- plot_util_marg2 + coord_flip(xlim = range$y)
-                
-              }
-              
-              plot_util_marg2
-              
-            }
             
           }
           
@@ -315,6 +311,15 @@ shinyServer(function(input, output, session) {
       }
       
     }
+    
+  })
+  
+  output$main_table <- renderRpivotTable({
+    
+    tab <- rpivotTable(df_util, rows = 'GEO_NAME', cols = 'YEARMONTH', aggregatorName = 'Average', vals = 'util_bill',
+                       rendererName = 'Table')
+    
+    tab
     
   })
   
