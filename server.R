@@ -127,7 +127,7 @@ shinyServer(function(input, output, session) {
                 exp_bill = sum(exp_bill)) %>%
       mutate(util_bill = (t_bill + t_inv)/exp_bill) %>%
       ungroup()
-
+    
     df_util_reac
     
   })
@@ -137,9 +137,9 @@ shinyServer(function(input, output, session) {
   
   range <- reactiveValues(y = NULL)
   
-  observeEvent(input$mainPlot_dblClick, {
+  observeEvent(input$marginal1_dblclick, {
     
-    brush <- input$mainPlot_brush
+    brush <- input$marginal1_brush
     
     if (!is.null(brush)){
       
@@ -150,8 +150,10 @@ shinyServer(function(input, output, session) {
       range$y <- NULL 
       
     }
+    
   })
   
+
   # plot to output
   
   output$utilization_YM <- renderPlot({
@@ -223,7 +225,8 @@ shinyServer(function(input, output, session) {
                    linetype = 3) +
         theme(panel.background = element_rect(fill =NA),
               panel.grid.major = element_line(colour = '#F6F6F6'),
-              axis.line = element_line(colour = '#BDBDBD'))
+              axis.line = element_line(colour = '#BDBDBD'),
+              axis.title.y = element_blank())
     
       if (!is.null(range)){
         
@@ -253,7 +256,8 @@ shinyServer(function(input, output, session) {
           theme(legend.position = 'none',
                 panel.background = element_rect(fill =NA),
                 panel.grid.major = element_line(colour = '#F6F6F6'),
-                axis.line = element_line(colour = '#BDBDBD'))
+                axis.line = element_line(colour = '#BDBDBD'),
+                axis.title.y = element_blank())
         
         if (!is.null(range)){
           
@@ -273,7 +277,8 @@ shinyServer(function(input, output, session) {
             theme(legend.position = 'none',
                   panel.background = element_rect(fill =NA),
                   panel.grid.major = element_line(colour = '#F6F6F6'),
-                  axis.line = element_line(colour = '#BDBDBD'))
+                  axis.line = element_line(colour = '#BDBDBD'),
+                  axis.title.y = element_blank())
             
             if (!is.null(range)){
               
@@ -292,7 +297,8 @@ shinyServer(function(input, output, session) {
               theme(legend.position = 'none',
                     panel.background = element_rect(fill =NA),
                     panel.grid.major = element_line(colour = '#F6F6F6'),
-                    axis.line = element_line(colour = '#BDBDBD'))
+                    axis.line = element_line(colour = '#BDBDBD'),
+                    axis.title.y = element_blank())
             
             if (!is.null(range)){
               
@@ -303,6 +309,29 @@ shinyServer(function(input, output, session) {
             plot_util_marg2
               
             
+            
+          } else {
+            
+            if (input$marginalVis == 'Stacked relative barchart'){
+              
+              plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = pass_df_util()) +
+                geom_histogram(position = 'fill') +
+                ylab('%') +
+                theme(legend.position = 'none',
+                      panel.background = element_rect(fill =NA),
+                      panel.grid.major = element_line(colour = '#F6F6F6'),
+                      axis.line = element_line(colour = '#BDBDBD'),
+                      axis.title.y = element_blank())
+              
+              if (!is.null(range)){
+                
+                plot_util_marg2 <- plot_util_marg2 + coord_flip(xlim = range$y)
+                
+              }
+              
+              plot_util_marg2
+              
+            }
             
           }
           
@@ -323,12 +352,47 @@ shinyServer(function(input, output, session) {
     
   })
   
-  output$test <- renderPrint ({
+  output$main_summary <- renderPrint ({
     
-    str(input$mainPlot_click)
-    str(input$mainPlot_brush)
+    if (!is.null(input$units)){
+      
+      by(data = pass_df_util()$util_bill, INDICES = pass_df_util()[, c(input$grouping, 'YEARMONTH')], summary)
+      
+    }
+    
+    
     
   })
+  
+  output$marginal_summary <- renderPrint({
+    
+    if (!is.null(input$units)){
+      
+      summary(pass_df_util()$util_bill)
+      
+    }
+    
+  })
+  
+  output$marginal_summary2 <- renderPrint({
+    
+    if (!is.null(input$units)){
+      
+      by(data = pass_df_util()$util_bill, INDICES = pass_df_util()[, input$grouping], summary)
+
+    }
+    
+  })
+  
+  output$test <- renderPrint({
+    
+    input$marginal1_brush
+    #range$y
+    #str(input$marginal1_brush)
+    #str(input$mainPlot_brush)
+    
+  })
+  
   
   
 })
@@ -347,8 +411,8 @@ shinyServer(function(input, output, session) {
 # par globalnych metrik
   # utilizacia  - podla geo -> dept -> org -> user 41
   #             - datatable mainPlot - pre kazdu unit a yearmonth - median, priemer, 1 kvartil, 3 kvartil, count, percento z viditelneho
-  #             - hlavny graf - boxplot
-  #             * namiesto checkboxov pre dpt a usera hodit to s vyhladavanim
+  #             - pivotka ked bude viacero metrik, vyber z metrik alebo volba datasetu v promptoch
+  #             - pivotka - sortovanie, vyhladavanie - dataTables
   #             - ciara median globalnej utilizacie v mesiaci
   #             - nejako vizualizovat, alebo hodit do tabulky o kolko percent dany subset snizuje/zvysuje median globalnej
   #                 utilizacie v mesiaci a celkovo, mozno aj utilizacie levelu nad, percento hodnot pod medianom

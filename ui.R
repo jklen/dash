@@ -42,10 +42,16 @@ shinyUI(fluidPage(
     
     div(style = 'height: 220px; overflow:scroll', uiOutput('reac_units')),
     
+    selectInput(inputId = 'mainPlotVis',
+                label = 'Main plot',
+                choices = c('Boxplots', 'Stacked barchart with counts', 'Stacked relative barchart'),
+                multiple = F,
+                selected = 'Boxplots'
+    ),
     
     selectInput(inputId = 'marginalVis',
                   label = 'Marginal plot',
-                  choices = c('Boxplots', 'Stacked histograms', 'Overlaid histograms'),
+                  choices = c('Boxplots', 'Stacked histograms', 'Stacked relative barchart', 'Overlaid histograms'),
                   multiple = F,
                   selected = 'Boxplots'
     )
@@ -59,18 +65,17 @@ shinyUI(fluidPage(
       tabPanel('Main',
                
               fluidRow(column(8, plotOutput("utilization_YM", 
-                            dblclick = 'mainPlot_dblClick',
-                            click = 'mainPlot_click',
-                            brush = brushOpts(id = 'mainPlot_brush',
-                                              direction = 'y'))),
+                            click = 'mainPlot_click' )),
                        column(2, plotOutput('Utilization_marginal1',
-                            click = clickOpts(id = 'util_marginal1_click'))),
+                            brush = brushOpts(id = 'marginal1_brush', direction = 'y'),
+                            dblclick = 'marginal1_dblclick')),
                        column(2, plotOutput('Utilization_marginal2'))
               ),
               
               fluidRow(
-                
                 verbatimTextOutput('test'),
+                column(8, verbatimTextOutput('main_summary')),
+                column(4, verbatimTextOutput('marginal_summary'), verbatimTextOutput('marginal_summary2')),
                 dataTableOutput('utilization_users')
                 
               )
