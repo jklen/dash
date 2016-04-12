@@ -84,3 +84,5 @@ df_util <- loadData()
 # http://stackoverflow.com/questions/6667091/pivot-table-like-output-in-r alebo DPLYR, TIDYR + datatables? pre crosstaby
 # http://rstudio.github.io/DT/ - datatables
 # https://gallery.shinyapps.io/105-plot-interaction-zoom/
+# http://stackoverflow.com/questions/11028353/passing-string-variable-facet-wrap-in-ggplot-using-r
+# http://stackoverflow.com/questions/13445753/force-ggplot2-scatter-plot-to-be-square-shaped - pri facetingu funguje theme

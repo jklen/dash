@@ -29,6 +29,33 @@ shinyServer(function(input, output, session) {
       
   })
   
+  # rendering listbox of possible color variables
+  
+  output$util_input_color <- renderUI({
+    
+    color_var_list <- pass_color_var()
+    
+    selectInput(inputId = 'color_var',
+                label = 'Color variable',
+                choices = c(color_var_list, 'None' = 'none'),
+                selected = 'none',
+                selectize = T,
+                multiple = F)
+    
+  })
+  
+  pass_color_var <- reactive({
+    
+    color_vars <- c('Tracked billable' = 't_bill',
+                    'Expected billable' = 'exp_bill',
+                    'Tracked investment' = 't_inv')
+    
+    color_vars <- color_vars[color_vars != input$util_inputs]
+    
+    color_vars
+    
+  })
+
   # creating reactive vector of units based on selected groupings
   
   pass_units <- reactive({
@@ -58,10 +85,11 @@ shinyServer(function(input, output, session) {
   # creating reactive dataframe based on date and value (units in prompt updated)
   
   pass_df <- reactive({
-    
+   
     df_util_r <- df_util[between(df_util$YEARMONTH, as.POSIXct(input$date_range[1]) - days(1), as.POSIXct(input$date_range[2])),]
-    
     df_util_r <- df_util_r[between(df_util_r$util_bill, input$util_value[1], input$util_value[2]),]
+    
+    df_util_r$YEARMONTH <- as.factor(df_util_r$YEARMONTH)
     
     df_util_r
     
@@ -161,24 +189,63 @@ shinyServer(function(input, output, session) {
     if (!is.null(input$units)){
       
       if (input$grouping != 'USER_NAME'){
-      
-        plot_util_YM <- ggplot(aes_string(y = 'util_bill', fill = input$grouping), data = pass_df_util()) + 
-          geom_boxplot(aes(x = factor(YEARMONTH))) +
-          geom_point(aes(x = factor(YEARMONTH)), 
-                     position=position_dodge(width=0.75), 
-                     fun.y = mean, stat = 'summary', shape = 1) +
-          geom_point(aes(x = factor(YEARMONTH)), 
-                     position=position_dodge(width=0.75), 
-                     fun.y = quantile, fun.args=list(probs=0.1),
-                    stat = 'summary', shape = 4) +
-          geom_point(aes(x = factor(YEARMONTH)), 
-                     position=position_dodge(width=0.75), 
-                     fun.y = quantile, fun.args=list(probs=0.9),
-                    stat = 'summary', shape = 4) +
-          theme(panel.background = element_rect(fill =NA),
-                panel.grid.major = element_line(colour = '#F6F6F6'),
-                axis.line = element_line(colour = '#BDBDBD'))
         
+        if (input$mainPlotVis == 'Boxplots'){
+      
+          plot_util_YM <- ggplot(aes_string(y = 'util_bill', fill = input$grouping), data = pass_df_util()) + 
+            geom_boxplot(aes(x = factor(YEARMONTH))) +
+            geom_point(aes(x = factor(YEARMONTH)), 
+                       position=position_dodge(width=0.75), 
+                       fun.y = mean, stat = 'summary', shape = 1) +
+            geom_point(aes(x = factor(YEARMONTH)), 
+                       position=position_dodge(width=0.75), 
+                       fun.y = quantile, fun.args=list(probs=0.1),
+                      stat = 'summary', shape = 4) +
+            geom_point(aes(x = factor(YEARMONTH)), 
+                       position=position_dodge(width=0.75), 
+                       fun.y = quantile, fun.args=list(probs=0.9),
+                      stat = 'summary', shape = 4) +
+            theme(panel.background = element_rect(fill =NA),
+                  panel.grid.major = element_line(colour = '#F6F6F6'),
+                  axis.line = element_line(colour = '#BDBDBD'))
+        
+        } else {
+         
+          if (input$mainPlotVis == 'Stacked barchart with counts') {
+            
+            plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = pass_df_util()) +
+              geom_bar(aes(x = factor(YEARMONTH)), position = 'stack') +
+              theme(panel.background = element_rect(fill =NA),
+                    panel.grid.major = element_line(colour = '#F6F6F6'),
+                    axis.line = element_line(colour = '#BDBDBD'))
+            
+          } else {
+            
+            if (input$mainPlotVis == 'Stacked relative barchart'){
+              
+              plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = pass_df_util()) +
+                geom_bar(aes(x = factor(YEARMONTH)), position = 'fill') +
+                theme(panel.background = element_rect(fill =NA),
+                      panel.grid.major = element_line(colour = '#F6F6F6'),
+                      axis.line = element_line(colour = '#BDBDBD'))
+              
+            } else {
+              
+              if (input$mainPlotVis == 'Dodged barchart'){
+                
+                plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = pass_df_util()) +
+                  geom_bar(aes(x = factor(YEARMONTH)),position = 'dodge') +
+                  theme(panel.background = element_rect(fill =NA),
+                        panel.grid.major = element_line(colour = '#F6F6F6'),
+                        axis.line = element_line(colour = '#BDBDBD')) 
+                
+              }
+              
+            }
+            
+          }
+          
+        }
         
         
       } else {
@@ -188,7 +255,7 @@ shinyServer(function(input, output, session) {
       
       }
       
-      if (!is.null(range)){
+      if (!is.null(range) & input$mainPlotVis == 'Boxplots'){
         
         plot_util_YM <- plot_util_YM + coord_cartesian(ylim = range$y)
         
@@ -393,7 +460,69 @@ shinyServer(function(input, output, session) {
     
   })
   
+  output$test1 <- renderPrint({
+    
+    input$inputs_brush
+    
+  })
   
+  # inputs tab plot
+  
+
+  output$utilization_inputs <- renderPlot({
+    
+    if (!is.null(input$units)){
+    
+      plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs), data = pass_df_util()) +
+        geom_point(alpha = 1/input$alpha, position = 'jitter') +
+        facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping))) +
+        theme(#aspect.ratio  = 1, - bug pri brushingu
+              legend.position = 'none',
+              panel.background = element_rect(fill =NA),
+              panel.grid.major = element_line(colour = '#F6F6F6'),
+              axis.line = element_line(colour = '#BDBDBD'),
+              strip.background = element_rect(fill = '#e5e5ff'),
+              strip.text = element_text(face = 'bold'))
+      
+      if (input$color_var != 'none'){
+        
+        plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs, color = input$color_var), data = pass_df_util()) +
+          geom_point(alpha = 1/input$alpha, position = 'jitter') +
+          facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping))) +
+          scale_colour_gradientn(colours=rainbow(5)) +
+          theme(#aspect.ratio  = 1, - bug pri brushingu
+            legend.position = 'none',
+            panel.background = element_rect(fill =NA),
+            panel.grid.major = element_line(colour = '#F6F6F6'),
+            axis.line = element_line(colour = '#BDBDBD'),
+            strip.background = element_rect(fill = '#e5e5ff'),
+            strip.text = element_text(face = 'bold')) 
+        
+      }
+      
+      if (input$smooth == T){
+        
+        plot_util_rel <- plot_util_rel + geom_smooth(method = 'lm') 
+        
+      }
+      
+      plot_util_rel
+    
+    }
+    
+  })
+  
+  
+  
+  # users in month selected with brush in inputs tab
+  
+  output$brushed_usersYM <- renderDataTable({
+    
+    selected <- brushedPoints(pass_df_util(), input$inputs_brush, 'util_bill', input$util_inputs)
+    
+    selected
+    
+  })
   
 })
 
@@ -434,7 +563,10 @@ shinyServer(function(input, output, session) {
 # analyticka funkcionalita - rozne metriky na task, round?
   # 1 premenna - grafy, summary
   # 2 a viac premennych - korelacna matica,
-  # upload suboru
+  # zistovat pravdepodobnost roznych eventov - markove modely, asociacne pravidla?
+  # analyza workflov
+  # analyza 'zdrojovej narocnosti' taskov
+  # moznost analyzovat vlastny datovy set
 # vizualizacne vychytavky - rCharts, Google charts (google vis), plotly, ggvis, ggplot2
   # interaktivna mapa, nejaka jednoducha metrika na staty
   # googleVis - calendar chart - napr. pocet submitnutych taskov na osobu, centrum, sponsora
