@@ -2,6 +2,9 @@
 library(shiny)
 library(plotly)
 library(ggplot2)
+library(dygraphs)
+library(xts)
+library(tidyr)
 library(dplyr)
 library(lubridate)
 library(rpivotTable)
@@ -11,8 +14,6 @@ library(rpivotTable)
 load('.Rdata')
 
 shinyServer(function(input, output, session) {
-  
-  
   
   # rendering checkbox group based on reactive vector of units
   
@@ -29,7 +30,7 @@ shinyServer(function(input, output, session) {
       
   })
   
-  # rendering listbox of possible color variables
+  # rendering listbox of possible color variables in Inputs tab
   
   output$util_input_color <- renderUI({
     
@@ -38,9 +39,20 @@ shinyServer(function(input, output, session) {
     selectInput(inputId = 'color_var',
                 label = 'Color variable',
                 choices = c(color_var_list, 'None' = 'none'),
-                selected = 'none',
+                selected = 't_inv',
                 selectize = T,
                 multiple = F)
+    
+  })
+  
+  output$user_list <- renderUI({
+    
+    selectInput(inputId = 'user_list_select',
+                label = 'Select users',
+                choices = unique(df_util$USER_NAME),
+                selectize = T,
+                multiple = T
+    )
     
   })
   
@@ -134,7 +146,6 @@ shinyServer(function(input, output, session) {
       }
       
     }
-    
     
     # group reactive dataframe based on selected grouping
     
@@ -250,8 +261,10 @@ shinyServer(function(input, output, session) {
         
       } else {
         
-        plot_util_YM <- ggplot(aes(x = YEARMONTH, y = util_bill, color = USER_NAME), data = pass_df_util()) +
-          geom_line()
+        
+        
+         # plot_util_YM <- ggplot(aes(x = YEARMONTH, y = util_bill, color = USER_NAME), data = pass_df_util()) +
+         #   geom_line()
       
       }
       
@@ -266,6 +279,46 @@ shinyServer(function(input, output, session) {
     }
     
   })
+  
+ 
+  output$users_dyg <- renderDygraph({
+    
+    if (!is.null(input$user_list_select)){
+      
+      f <- df_util %>% 
+        filter(USER_NAME %in% input$user_list_select) %>%
+        group_by(USER_NAME, YEARMONTH) %>%
+        summarise(t_bill = sum(t_bill), 
+                  t_inv = sum(t_inv), 
+                  exp_bill = sum(exp_bill)) %>%
+        mutate(util_bill = (t_bill + t_inv)/exp_bill) %>%
+        select(YEARMONTH, USER_NAME, util_bill) %>%
+        ungroup()
+
+      df_toDygraph <- spread(data = f, key = USER_NAME, value = util_bill)
+
+      df_toDygraph_xts <- xts(x = df_toDygraph[, colnames(df_toDygraph) != 'YEARMONTH'], 
+                              order.by = as.POSIXct(strptime(as.character(df_toDygraph$YEARMONTH), format = "%Y-%m-%d")))
+      
+      plot_dyg <- dygraph(df_toDygraph_xts, y = 'User utilization') %>% 
+        dyRangeSelector(height = 20) %>%
+        dyHighlight(highlightSeriesOpts = list(strokeWidth = 3),
+                    highlightCircleSize = 4,
+                    highlightSeriesBackgroundAlpha = 0.2,
+                    hideOnMouseOut = F)
+      
+      
+      
+    } else {
+      
+      plot_dyg <- NULL 
+      
+    }
+    
+    plot_dyg
+    
+  })
+  
   
   output$Utilization_marginal1 <- renderPlot({
     
@@ -472,32 +525,37 @@ shinyServer(function(input, output, session) {
   output$utilization_inputs <- renderPlot({
     
     if (!is.null(input$units)){
+      
+      if (input$color_var == 'none'){
     
-      plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs), data = pass_df_util()) +
-        geom_point(alpha = 1/input$alpha, position = 'jitter') +
-        facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping))) +
-        theme(#aspect.ratio  = 1, - bug pri brushingu
+        plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs), data = pass_df_util()) +
+          geom_point(alpha = 1/input$alpha, position = 'jitter') +
+          facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T) +
+          theme(#aspect.ratio  = 1, - bug pri brushingu
+                legend.position = 'none',
+                panel.background = element_rect(fill =NA),
+                panel.grid.major = element_line(colour = '#F6F6F6'),
+                axis.line = element_line(colour = '#BDBDBD'),
+                strip.background = element_rect(fill = '#e5e5ff'),
+                strip.text = element_text(face = 'bold'))
+      
+      } else {
+      
+        if (input$color_var != 'none'){
+          
+          plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs, color = input$color_var), data = pass_df_util()) +
+            geom_point(alpha = 1/input$alpha, position = 'jitter') +
+            facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T) +
+            scale_colour_gradientn(colours=rainbow(5)) +
+            theme(#aspect.ratio  = 1, - bug pri brushingu
               legend.position = 'none',
               panel.background = element_rect(fill =NA),
               panel.grid.major = element_line(colour = '#F6F6F6'),
               axis.line = element_line(colour = '#BDBDBD'),
               strip.background = element_rect(fill = '#e5e5ff'),
-              strip.text = element_text(face = 'bold'))
-      
-      if (input$color_var != 'none'){
-        
-        plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs, color = input$color_var), data = pass_df_util()) +
-          geom_point(alpha = 1/input$alpha, position = 'jitter') +
-          facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping))) +
-          scale_colour_gradientn(colours=rainbow(5)) +
-          theme(#aspect.ratio  = 1, - bug pri brushingu
-            legend.position = 'none',
-            panel.background = element_rect(fill =NA),
-            panel.grid.major = element_line(colour = '#F6F6F6'),
-            axis.line = element_line(colour = '#BDBDBD'),
-            strip.background = element_rect(fill = '#e5e5ff'),
-            strip.text = element_text(face = 'bold')) 
-        
+              strip.text = element_text(face = 'bold')) 
+          
+        }
       }
       
       if (input$smooth == T){
@@ -512,13 +570,50 @@ shinyServer(function(input, output, session) {
     
   })
   
-  
-  
-  # users in month selected with brush in inputs tab
+  # users in month selected with brush in Inputs tab
   
   output$brushed_usersYM <- renderDataTable({
+
+    if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 != '(all)'){
+      
+      selected <- pass_df_util()[pass_df_util()$YEARMONTH == input$inputs_brush$panelvar2 &
+                                   pass_df_util()$util_bill >= input$inputs_brush$xmin &
+                                   pass_df_util()$util_bill <= input$inputs_brush$xmax &
+                                   pass_df_util()[input$util_inputs] >= input$inputs_brush$ymin &
+                                   pass_df_util()[input$util_inputs] <= input$inputs_brush$ymax, ]
+
+    } else {
+      
+      if (input$inputs_brush$panelvar1 != '(all)' & input$inputs_brush$panelvar2 == '(all)'){
+        
+        selected <- pass_df_util()[pass_df_util()[input$grouping] == input$inputs_brush$panelvar1 &
+                                     pass_df_util()$util_bill >= input$inputs_brush$xmin &
+                                     pass_df_util()$util_bill <= input$inputs_brush$xmax &
+                                     pass_df_util()[input$util_inputs] >= input$inputs_brush$ymin &
+                                     pass_df_util()[input$util_inputs] <= input$inputs_brush$ymax, ] 
+        
+      } else {
+        
+        if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 == '(all)'){
+          
+          selected <- pass_df_util()[pass_df_util()$util_bill >= input$inputs_brush$xmin &
+                                       pass_df_util()$util_bill <= input$inputs_brush$xmax &
+                                       pass_df_util()[input$util_inputs] >= input$inputs_brush$ymin &
+                                       pass_df_util()[input$util_inputs] <= input$inputs_brush$ymax, ] 
+          
+        } else {
     
-    selected <- brushedPoints(pass_df_util(), input$inputs_brush, 'util_bill', input$util_inputs)
+          selected <- brushedPoints(pass_df_util(), 
+                                    input$inputs_brush, 
+                                    'util_bill', 
+                                    input$util_inputs)
+      
+        }
+      }
+      
+    }
+    
+    
     
     selected
     

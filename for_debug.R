@@ -86,3 +86,4 @@ df_util <- loadData()
 # https://gallery.shinyapps.io/105-plot-interaction-zoom/
 # http://stackoverflow.com/questions/11028353/passing-string-variable-facet-wrap-in-ggplot-using-r
 # http://stackoverflow.com/questions/13445753/force-ggplot2-scatter-plot-to-be-square-shaped - pri facetingu funguje theme
+# http://stackoverflow.com/questions/23224142/converting-data-frame-to-xts-order-by-requires-an-appropriate-time-based-object xts akceptuje Date, timeDate, POSIXct
