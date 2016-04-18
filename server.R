@@ -191,7 +191,7 @@ shinyServer(function(input, output, session) {
     }
     
   })
-  
+
 
   # plot to output
   
@@ -515,7 +515,8 @@ shinyServer(function(input, output, session) {
   
   output$test1 <- renderPrint({
     
-    input$inputs_brush
+    #input$inputs_brush
+    input$inputs_click
     
   })
   
@@ -569,53 +570,92 @@ shinyServer(function(input, output, session) {
     }
     
   })
-  
+ 
   # users in month selected with brush in Inputs tab
   
   output$brushed_usersYM <- renderDataTable({
+    
+    if (!is.null(input$inputs_brush)){
 
-    if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 != '(all)'){
-      
-      selected <- pass_df_util()[pass_df_util()$YEARMONTH == input$inputs_brush$panelvar2 &
-                                   pass_df_util()$util_bill >= input$inputs_brush$xmin &
-                                   pass_df_util()$util_bill <= input$inputs_brush$xmax &
-                                   pass_df_util()[input$util_inputs] >= input$inputs_brush$ymin &
-                                   pass_df_util()[input$util_inputs] <= input$inputs_brush$ymax, ]
-
-    } else {
-      
-      if (input$inputs_brush$panelvar1 != '(all)' & input$inputs_brush$panelvar2 == '(all)'){
+      if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 != '(all)'){
         
-        selected <- pass_df_util()[pass_df_util()[input$grouping] == input$inputs_brush$panelvar1 &
+        selected <- pass_df_util()[pass_df_util()$YEARMONTH == input$inputs_brush$panelvar2 &
                                      pass_df_util()$util_bill >= input$inputs_brush$xmin &
                                      pass_df_util()$util_bill <= input$inputs_brush$xmax &
                                      pass_df_util()[input$util_inputs] >= input$inputs_brush$ymin &
-                                     pass_df_util()[input$util_inputs] <= input$inputs_brush$ymax, ] 
-        
+                                     pass_df_util()[input$util_inputs] <= input$inputs_brush$ymax, ]
+  
       } else {
         
-        if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 == '(all)'){
+        if (input$inputs_brush$panelvar1 != '(all)' & input$inputs_brush$panelvar2 == '(all)'){
           
-          selected <- pass_df_util()[pass_df_util()$util_bill >= input$inputs_brush$xmin &
+          selected <- pass_df_util()[pass_df_util()[input$grouping] == input$inputs_brush$panelvar1 &
+                                       pass_df_util()$util_bill >= input$inputs_brush$xmin &
                                        pass_df_util()$util_bill <= input$inputs_brush$xmax &
                                        pass_df_util()[input$util_inputs] >= input$inputs_brush$ymin &
                                        pass_df_util()[input$util_inputs] <= input$inputs_brush$ymax, ] 
           
         } else {
-    
-          selected <- brushedPoints(pass_df_util(), 
-                                    input$inputs_brush, 
-                                    'util_bill', 
-                                    input$util_inputs)
+          
+          if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 == '(all)'){
+            
+            selected <- pass_df_util()[pass_df_util()$util_bill >= input$inputs_brush$xmin &
+                                         pass_df_util()$util_bill <= input$inputs_brush$xmax &
+                                         pass_df_util()[input$util_inputs] >= input$inputs_brush$ymin &
+                                         pass_df_util()[input$util_inputs] <= input$inputs_brush$ymax, ] 
+            
+          } else {
       
+            selected <- brushedPoints(pass_df_util(), 
+                                      input$inputs_brush, 
+                                      'util_bill', 
+                                      input$util_inputs)
+        
+          }
         }
+        
+      }
+      
+      
+      
+      #selected
+    
+    } else {
+      
+      if (!is.null(input$inputs_dblclick)){
+        
+        if (input$inputs_dblclick$panelvar1 == '(all)' & input$inputs_dblclick$panelvar2 != '(all)'){
+          
+          selected <- pass_df_util()[pass_df_util()$YEARMONTH == input$inputs_dblclick$panelvar2,]
+          
+        } else {
+          
+          if (input$inputs_dblclick$panelvar1 != '(all)' & input$inputs_dblclick$panelvar2 == '(all)'){
+            
+            selected <- pass_df_util()[pass_df_util()[input$grouping] == input$inputs_dblclick$panelvar1,] 
+            
+          } else {
+            
+            if (input$inputs_dblclick$panelvar1 == '(all)' & input$inputs_dblclick$panelvar2 == '(all)'){
+              
+              selected <- pass_df_util()
+              
+            } else {
+              
+              selected <- pass_df_util()[pass_df_util()$YEARMONTH == input$inputs_dblclick$panelvar2 &
+                                           pass_df_util()[input$grouping] == input$inputs_dblclick$panelvar1,]
+              
+            }
+            
+          }
+          
+        }
+        
       }
       
     }
     
-    
-    
-    selected
+    #selected
     
   })
   

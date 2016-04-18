@@ -127,7 +127,8 @@ shinyUI(fluidPage(
                               height = "1200px",
                               brush = brushOpts(id = 'inputs_brush',
                                                 direction = 'xy',
-                                                clip = T)
+                                                clip = T),
+                          dblclick = dblclickOpts(id = 'inputs_dblclick')
             
                         ),
                
