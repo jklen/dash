@@ -1,5 +1,6 @@
 
 library(shiny)
+library(DT)
 library(plotly)
 library(ggplot2)
 library(dygraphs)
@@ -69,7 +70,7 @@ shinyUI(fluidPage(
                     )
     ),
     
-    conditionalPanel(condition = "input.tabs_1 == 'Inputs'",
+    conditionalPanel(condition = "input.tabs_1 == 'Inputs' || input.tabs_1 == 'Selected'",
                      
                      selectInput(inputId = 'util_inputs',
                                  choices = c('Tracked billable' = 't_bill',
@@ -77,9 +78,20 @@ shinyUI(fluidPage(
                                              'Tracked investment' = 't_inv'),
                                  label = 'Y variable',
                                  multiple = F,
-                                 selected = 't_bill'),
+                                 selected = 't_bill')
+    ),
+    
+    conditionalPanel(condition = "input.tabs_1 == 'Inputs'",
                      
-                     uiOutput('util_input_color'),
+                     uiOutput('util_input_color')
+    ),
+    
+    conditionalPanel(condition = "input.tabs_1 == 'Selected'",
+                     
+                     uiOutput('util_selected_color')
+    ),
+    
+    conditionalPanel(condition = "input.tabs_1 == 'Inputs' || input.tabs_1 == 'Selected'",
                      
                      sliderInput(inputId = 'alpha',
                                  label = 'Alpha',
@@ -128,16 +140,19 @@ shinyUI(fluidPage(
                               brush = brushOpts(id = 'inputs_brush',
                                                 direction = 'xy',
                                                 clip = T),
-                          dblclick = dblclickOpts(id = 'inputs_dblclick')
+                          dblclick = dblclickOpts(id = 'inputs_dblclick'),
+                          click = clickOpts(id = 'inputs_click')
             
-                        ),
-               
-               fluidRow(verbatimTextOutput('test1')
-                        
                         )
+               
+
       ),
       
-      tabPanel('Selected', dataTableOutput('brushed_usersYM')
+      tabPanel('Selected', 
+               
+               plotOutput('selected_chart'),
+               DT:: dataTableOutput('selected_table'),
+               verbatimTextOutput('test1')
                
       ),
       
