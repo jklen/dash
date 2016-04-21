@@ -70,7 +70,7 @@ shinyUI(fluidPage(
                     )
     ),
     
-    conditionalPanel(condition = "input.tabs_1 == 'Inputs' || input.tabs_1 == 'Selected'",
+    conditionalPanel(condition = "input.tabs_1 == 'Inputs'",
                      
                      selectInput(inputId = 'util_inputs',
                                  choices = c('Tracked billable' = 't_bill',
@@ -79,6 +79,12 @@ shinyUI(fluidPage(
                                  label = 'Y variable',
                                  multiple = F,
                                  selected = 't_bill')
+    ),
+    
+    conditionalPanel(condition = "input.tabs_1 == 'Selected'",
+                     
+                     uiOutput('util_input_selected')
+                     
     ),
     
     conditionalPanel(condition = "input.tabs_1 == 'Inputs'",
@@ -139,10 +145,8 @@ shinyUI(fluidPage(
                               height = "1200px",
                               brush = brushOpts(id = 'inputs_brush',
                                                 direction = 'xy',
-                                                clip = T),
-                          dblclick = dblclickOpts(id = 'inputs_dblclick'),
-                          click = clickOpts(id = 'inputs_click')
-            
+                                                clip = T)
+
                         )
                
 

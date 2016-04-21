@@ -48,18 +48,27 @@ shinyServer(function(input, output, session) {
   
   output$util_selected_color <- renderUI({
     
-    color_var_list_select <- pass_color_var()
+    color_var_list_select <- pass_color_var_selected()
     
     selectInput(inputId = 'color_var_select',
                 label = 'Color variable',
-                choices = c(color_var_list_select,
-                            switch(input$grouping, GEO_NAME = c('Geo' = 'GEO_NAME'),
-                                                    ORG_NAME = c('Organization' = 'ORG_NAME'),
-                                                    DPT_NAME = c('Department' = 'DPT_NAME')),
-                            'User' = 'USER_NAME',
-                            'None' = 'none'),
+                choices = color_var_list_select,
+                selected = input$grouping,
                 selectize = T,
                 multiple = F
+    )
+    
+  })
+  
+  output$util_input_selected <- renderUI({
+    
+    selectInput(inputId = 'util_inputs_selected',
+                choices = c('Tracked billable' = 't_bill',
+                            'Expected billable' = 'exp_bill',
+                            'Tracked investment' = 't_inv'),
+                label = 'Y variable',
+                multiple = F,
+                selected = input$util_inputs
     )
     
   })
@@ -84,6 +93,23 @@ shinyServer(function(input, output, session) {
     color_vars <- color_vars[color_vars != input$util_inputs]
     
     color_vars
+    
+  })
+  
+  pass_color_var_selected <- reactive({
+    
+    color_vars_selected <- c('Tracked billable' = 't_bill',
+                             'Expected billable' = 'exp_bill',
+                             'Tracked investment' = 't_inv',
+                             switch(input$grouping, GEO_NAME = c('Geo' = 'GEO_NAME'),
+                                    ORG_NAME = c('Organization' = 'ORG_NAME'),
+                                    DPT_NAME = c('Department' = 'DPT_NAME')),
+                             'User' = 'USER_NAME',
+                             'None' = 'none')
+    
+    color_vars_selected <- color_vars_selected[color_vars_selected != input$util_inputs_selected]
+    
+    color_vars_selected
     
   })
   
@@ -537,7 +563,8 @@ shinyServer(function(input, output, session) {
     
     #input$inputs_brush
     #pass_df_selected()[as.numeric(input$selected_table_rows_selected), ]
-    input$inputs_click
+    #input$inputs_dblclick
+    unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])
     
   })
   
@@ -582,7 +609,7 @@ shinyServer(function(input, output, session) {
       
       if (input$smooth == T){
         
-        plot_util_rel <- plot_util_rel + geom_smooth(method = 'lm') 
+        plot_util_rel <- plot_util_rel + geom_smooth(method = 'lm', alpha = 0.05) 
         
       }
       
@@ -596,30 +623,107 @@ shinyServer(function(input, output, session) {
   
   output$selected_chart <- renderPlot ({
     
-    if (!is.null(input$inputs_brush) | !is.null(input$inputs_dblclick)){
-    
-      plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs), 
-                              data = pass_df_selected()) +
-        geom_point(alpha = 2/input$alpha, position = 'jitter', aes_string(color = input$color_var)) +
-        scale_colour_gradientn(colours=rainbow(5)) +
-        theme(#legend.position = 'none',
-          panel.background = element_rect(fill =NA),
-          panel.grid.major = element_line(colour = '#F6F6F6'),
-          axis.line = element_line(colour = '#BDBDBD'),
-          strip.background = element_rect(fill = '#e5e5ff'),
-          strip.text = element_text(face = 'bold'))
+    if (!is.null(input$inputs_brush)){
+      
+      # plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs), 
+      #                         data = pass_df_selected_brush()) +
+      #   theme(#legend.position = 'none',
+      #     panel.background = element_rect(fill =NA),
+      #     panel.grid.major = element_line(colour = '#F6F6F6'),
+      #     axis.line = element_line(colour = '#BDBDBD'),
+      #     strip.background = element_rect(fill = '#e5e5ff'),
+      #     strip.text = element_text(face = 'bold'))
+      
+      if (input$color_var_select %in% c('none', 'USER_NAME')){
+        
+        plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs_selected),
+                                data = pass_df_selected_brush()) +
+          geom_point(alpha = 1/input$alpha, position = 'jitter') +
+          theme(#legend.position = 'none',
+            panel.background = element_rect(fill =NA),
+            panel.grid.major = element_line(colour = '#F6F6F6'),
+            axis.line = element_line(colour = '#BDBDBD'),
+            strip.background = element_rect(fill = '#e5e5ff'),
+            strip.text = element_text(face = 'bold'))
+        
+        #plot_selected <- plot_selected + geom_point(alpha = 1/input$alpha, position = 'jitter')
+        
+      } else {
+      
+        if (input$color_var_select != input$grouping){
+          
+          plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs_selected, color = input$color_var_select),
+                                  data = pass_df_selected_brush()) +
+            geom_point(alpha = 1/input$alpha, position = 'jitter') +
+            scale_colour_gradientn(colours = rainbow(5)) +
+            theme(#legend.position = 'none',
+              panel.background = element_rect(fill =NA),
+              panel.grid.major = element_line(colour = '#F6F6F6'),
+              axis.line = element_line(colour = '#BDBDBD'),
+              strip.background = element_rect(fill = '#e5e5ff'),
+              strip.text = element_text(face = 'bold'))
+          
+  
+          # plot_selected <- plot_selected + 
+          #   geom_point(aes_string(color = input$color_var_select), alpha = 1/input$alpha, position = 'jitter') +
+          #   scale_colour_gradientn(colours = rainbow(5))
+  
+        } else {
+          
+          if (input$color_var_select == input$grouping){
+            
+            plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs_selected, color = input$color_var_select),
+                                    data = pass_df_selected_brush()) +
+              geom_point(alpha = 1/input$alpha, position = 'jitter') +
+              theme(#legend.position = 'none',
+                panel.background = element_rect(fill =NA),
+                panel.grid.major = element_line(colour = '#F6F6F6'),
+                axis.line = element_line(colour = '#BDBDBD'),
+                strip.background = element_rect(fill = '#e5e5ff'),
+                strip.text = element_text(face = 'bold'))
+          
+            # plot_selected <- plot_selected + geom_point(aes_string(color = input$color_var_select), alpha = 1/input$alpha, position = 'jitter')
+          
+          }
+          
+        }
+      }
       
       if (input$smooth == T) {
         
-        plot_selected <- plot_selected + geom_smooth(method = 'lm') 
+        if (input$color_var_select == input$grouping){
+          
+          plot_selected <- plot_selected + geom_smooth(method = 'lm', aes_string(group = input$grouping), alpha = 0.05) 
+          
+        } else {
+          
+          if (input$color_var_select != 'USER_NAME'){
+            
+            plot_selected <- plot_selected + geom_smooth(method = 'lm', alpha = 0.05) 
+            
+          }
+          
+        }
+        
+        #plot_selected <- plot_selected + geom_smooth(method = 'lm') 
         
       }
       
-      if (!is.null(input$selected_table_rows_selected)){
+      if (!is.null(input$selected_table_rows_selected) & input$color_var_select == 'USER_NAME'){
         
-        plot_selected <- plot_selected + geom_point(data = pass_df_selected()[as.numeric(input$selected_table_rows_selected),], size = 5, aes(shape = USER_NAME))
+        plot_selected <- plot_selected +
+          geom_point(data = pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),], size = 5, aes(color = USER_NAME))
         
-      }
+        if (input$smooth == T){
+          
+          plot_selected <- plot_selected + geom_smooth(data = pass_df_selected_brush()[pass_df_selected_brush()$USER_NAME %in% unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])$USER_NAME,],
+                                                       aes_string(group = 'USER_NAME'), alpha = 0.05, method = 'lm')
+          
+          #cat(file=stderr(), "UNIQUE", unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])) 
+          
+        }
+        
+      } 
       
     plot_selected
       
@@ -632,7 +736,7 @@ shinyServer(function(input, output, session) {
 
   # reactive dataframe based on dblcicked or brushed in Inputs tab, goes to chart and table in Select tab
   
-  pass_df_selected <- reactive ({
+  pass_df_selected_brush <- reactive ({
     
     if (!is.null(input$units)){
     
@@ -640,7 +744,7 @@ shinyServer(function(input, output, session) {
         
         if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 != '(all)'){
           
-          selected <- pass_df_util()[pass_df_util()$YEARMONTH == input$inputs_brush$panelvar2 &
+          selected_brush <- pass_df_util()[pass_df_util()$YEARMONTH == input$inputs_brush$panelvar2 &
                                        pass_df_util()$util_bill >= input$inputs_brush$xmin &
                                        pass_df_util()$util_bill <= input$inputs_brush$xmax &
                                        pass_df_util()[input$util_inputs] >= input$inputs_brush$ymin &
@@ -650,7 +754,7 @@ shinyServer(function(input, output, session) {
           
           if (input$inputs_brush$panelvar1 != '(all)' & input$inputs_brush$panelvar2 == '(all)'){
             
-            selected <- pass_df_util()[pass_df_util()[input$grouping] == input$inputs_brush$panelvar1 &
+            selected_brush <- pass_df_util()[pass_df_util()[input$grouping] == input$inputs_brush$panelvar1 &
                                          pass_df_util()$util_bill >= input$inputs_brush$xmin &
                                          pass_df_util()$util_bill <= input$inputs_brush$xmax &
                                          pass_df_util()[input$util_inputs] >= input$inputs_brush$ymin &
@@ -660,14 +764,14 @@ shinyServer(function(input, output, session) {
             
             if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 == '(all)'){
               
-              selected <- pass_df_util()[pass_df_util()$util_bill >= input$inputs_brush$xmin &
+              selected_brush <- pass_df_util()[pass_df_util()$util_bill >= input$inputs_brush$xmin &
                                            pass_df_util()$util_bill <= input$inputs_brush$xmax &
                                            pass_df_util()[input$util_inputs] >= input$inputs_brush$ymin &
                                            pass_df_util()[input$util_inputs] <= input$inputs_brush$ymax, ] 
               
             } else {
               
-              selected <- brushedPoints(pass_df_util(), 
+              selected_brush <- brushedPoints(pass_df_util(), 
                                         input$inputs_brush, 
                                         'util_bill', 
                                         input$util_inputs)
@@ -681,54 +785,23 @@ shinyServer(function(input, output, session) {
         
         #selected
         
-      } else {
-        
-        if (!is.null(input$inputs_dblclick)){
-          
-          if (input$inputs_dblclick$panelvar1 == '(all)' & input$inputs_dblclick$panelvar2 != '(all)'){
-            
-            selected <- pass_df_util()[pass_df_util()$YEARMONTH == input$inputs_dblclick$panelvar2,]
-            
-          } else {
-            
-            if (input$inputs_dblclick$panelvar1 != '(all)' & input$inputs_dblclick$panelvar2 == '(all)'){
-              
-              selected <- pass_df_util()[pass_df_util()[input$grouping] == input$inputs_dblclick$panelvar1,] 
-              
-            } else {
-              
-              if (input$inputs_dblclick$panelvar1 == '(all)' & input$inputs_dblclick$panelvar2 == '(all)'){
-                
-                selected <- pass_df_util()
-                
-              } else {
-                
-                selected <- pass_df_util()[pass_df_util()$YEARMONTH == input$inputs_dblclick$panelvar2 &
-                                             pass_df_util()[input$grouping] == input$inputs_dblclick$panelvar1,]
-                
-              }
-              
-            }
-            
-          }
-          
-        }
-        
       }
       
     }
     
+    
+    
   })
- 
+  
   # users in month selected with brush or with doubleclick in Inputs tab
   
   output$selected_table <- DT::renderDataTable({
     
-    if (!is.null(input$inputs_brush) | !is.null(input$inputs_dblclick)){
+    if (!is.null(input$inputs_brush)){
     
-      renderDT <- DT::datatable(pass_df_selected()) %>%
+      renderDT <- DT::datatable(pass_df_selected_brush()) %>%
         formatStyle('util_bill', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue'))) %>%
-        formatStyle('t_bill', background = styleColorBar(pass_df_selected()$t_bill, 'steelblue'))
+        formatStyle('t_bill', background = styleColorBar(pass_df_selected_brush()$t_bill, 'steelblue'))
       
       renderDT
       
