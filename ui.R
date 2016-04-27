@@ -7,8 +7,9 @@ library(dygraphs)
 library(dplyr)
 library(lubridate)
 library(rpivotTable)
+library(shinythemes)
 
-shinyUI(fluidPage(
+shinyUI(fluidPage(theme = shinytheme("Spacelab"),
   
   titlePanel("Utilization"),
   

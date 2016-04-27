@@ -12,6 +12,7 @@ loadData <- function() {
   org <- read.csv('org.csv')
   geo <- read.csv('geo.csv')
   user <- read.table('user.tsv', sep = '|', header = T)
+  countries <- read.csv('countries.csv')
   
   dept <- dept %>%
     select(ID, NAME) %>%
@@ -22,10 +23,14 @@ loadData <- function() {
   geo <- geo %>%
     select(ID, NAME) %>%
     rename(GEO_ID = ID, GEO_NAME = NAME)
+  countries <- countries %>%
+    select(ID, NAME) %>%
+    rename(COUNTRY_ID = ID, COUNTRY_NAME = NAME)
   user <- user %>%
     mutate(USER_NAME = paste(FIRSTNAME, LASTNAME)) %>%
     rename(USER_ID = ID) %>%
-    select(USER_ID, USER_NAME)
+    select(USER_ID, USER_NAME, COUNTRY) %>%
+    rename(COUNTRY_ID = COUNTRY)
   
   mqt_util <- mqt_utilization
   mqt_util[,c(1:5, 10:13, 27)] <- lapply(mqt_util[,c(1:5, 10:13, 27)], as.character)
@@ -44,9 +49,14 @@ loadData <- function() {
   dept$DEPT_NAME <- as.character(dept$DEPT_NAME)
   org$ORG_NAME <- as.character(org$ORG_NAME)
   geo$GEO_NAME <- as.character(geo$GEO_NAME)
+  countries$COUNTRY_ID <- factor(countries$COUNTRY_ID)
   user$USER_NAME <- as.character(user$USER_NAME)
+  user$COUNTRY_ID <- factor(user$COUNTRY_ID)
   
   # used groupings (41 - je tam aj rola)
+  
+  user <- user %>% inner_join(countries, by = 'COUNTRY_ID')
+    
   
   df_util <- mqt_util %>%
     filter(SUMMARY == 41) %>%
@@ -59,7 +69,8 @@ loadData <- function() {
     inner_join(org, by = 'ORG_ID') %>%
     inner_join(geo, by = 'GEO_ID') %>%
     inner_join(user, by = 'USER_ID') %>%
-    select(GEO_ID, GEO_NAME, DEPT_ID, DEPT_NAME, ORG_ID, ORG_NAME, USER_ID, USER_NAME,
+    #inner_join(user_country, by = 'USER_ID') %>%
+    select(GEO_ID, GEO_NAME, DEPT_ID, DEPT_NAME, ORG_ID, ORG_NAME, USER_ID, USER_NAME, COUNTRY_ID, COUNTRY_NAME,
            YEARMONTH, t_bill, t_inv, exp_bill, util_bill) %>%
     #filter(util_bill > 0) %>%
     filter(!is.na(util_bill)) %>%
@@ -72,6 +83,18 @@ loadData <- function() {
 }
 
 df_util <- loadData()
+
+###################################### some testing
+
+lnd <- readOGR(dsn = 'C:\\Users\\IBM_ADMIN\\Desktop\\R\\worldBordersMap', layer = 'TM_WORLD_BORDERS-0.3')
+wrldMap <- map('world', plot = F, fill = T)
+
+lnd@data <- lnd@data %>% left_join(countries_mean)
+
+pal <- colorNumeric(palette = 'Blues', domain = lnd$cmean) # definovanie palety vid. dokumentaciu
+
+leaflet() %>% addPolygons(data = lnd, stroke = F, fillOpacity = 0.4, smoothFactor = 0.2, color = ~pal(cmean)) %>% addTiles()
+leaflet(data = wrldMap) %>% addPolygons() %>% addTiles()
 
 # http://stackoverflow.com/questions/21435139/combine-geom-boxplot-with-geom-line
 # https://github.com/rstudio/shiny/issues/678

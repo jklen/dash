@@ -623,16 +623,7 @@ shinyServer(function(input, output, session) {
   
   output$selected_chart <- renderPlot ({
     
-    if (!is.null(input$inputs_brush)){
-      
-      # plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs), 
-      #                         data = pass_df_selected_brush()) +
-      #   theme(#legend.position = 'none',
-      #     panel.background = element_rect(fill =NA),
-      #     panel.grid.major = element_line(colour = '#F6F6F6'),
-      #     axis.line = element_line(colour = '#BDBDBD'),
-      #     strip.background = element_rect(fill = '#e5e5ff'),
-      #     strip.text = element_text(face = 'bold'))
+    if (!is.null(input$inputs_brush) & !is.null(input$units)){
       
       if (input$color_var_select %in% c('none', 'USER_NAME')){
         
@@ -734,13 +725,11 @@ shinyServer(function(input, output, session) {
   })
   
 
-  # reactive dataframe based on dblcicked or brushed in Inputs tab, goes to chart and table in Select tab
+  # reactive dataframe based on brushed in Inputs tab, goes to chart and table in Select tab
   
   pass_df_selected_brush <- reactive ({
     
-    if (!is.null(input$units)){
-    
-      if (!is.null(input$inputs_brush)){
+      if (!is.null(input$inputs_brush) & !is.null(input$units)){
         
         if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 != '(all)'){
           
@@ -782,12 +771,12 @@ shinyServer(function(input, output, session) {
         }
         
         
-        
+        selected_brush
         #selected
         
       }
       
-    }
+    
     
     
     
@@ -797,7 +786,7 @@ shinyServer(function(input, output, session) {
   
   output$selected_table <- DT::renderDataTable({
     
-    if (!is.null(input$inputs_brush)){
+    if (!is.null(input$inputs_brush) & !is.null(input$units)){
     
       renderDT <- DT::datatable(pass_df_selected_brush()) %>%
         formatStyle('util_bill', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue'))) %>%
