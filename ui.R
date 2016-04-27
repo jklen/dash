@@ -8,6 +8,7 @@ library(dplyr)
 library(lubridate)
 library(rpivotTable)
 library(shinythemes)
+library(leaflet)
 
 shinyUI(fluidPage(theme = shinytheme("Spacelab"),
   
@@ -172,7 +173,51 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                dygraphOutput('users_dyg')
       ),
       
+      tabPanel('Map',
+               
+               leafletOutput('countries',
+                             height = '600px'),
+               
+               absolutePanel(top = 50,
+                             right = 20,
+                             
+                             selectInput('map_variable',
+                                         label = 'Select variable',
+                                         choices = c('Utilization' = 'util_bill',
+                                                     'Tracked billable' = 't_bill',
+                                                     'Tracked investment' = 't_inv',
+                                                     'Expected billable' = 'exp_bill'),
+                                         multiple = F,
+                                         selectize = T,
+                                         selected = 'util_bill',
+                                         width = '200px'),
+                             
+                             selectInput('map_statistic',
+                                         label = 'Select statistic',
+                                         choices = c('Mean' = 'mean',
+                                                     'Quantile' = 'quantile'),
+                                         multiple = F,
+                                         selected = 'mean',
+                                         selectize = T,
+                                         width = '200px'),
+                             
+                             conditionalPanel(condition = "input.map_statistic == 'quantile'",
+                                              
+                                sliderInput('map_quant',
+                                            label = NULL,
+                                            min = 0,
+                                            max = 1,
+                                            value = 0.5,
+                                            step = 0.01,
+                                            width = '200px'
+                                )
+                             )
+               )
+      ),
+      
       tabPanel('Pivot', rpivotTableOutput('main_table')
+               
+               
       
       )
       

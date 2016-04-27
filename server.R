@@ -9,6 +9,7 @@ library(tidyr)
 library(dplyr)
 library(lubridate)
 library(rpivotTable)
+library(leaflet)
 
 # data load
 
@@ -796,6 +797,22 @@ shinyServer(function(input, output, session) {
       
     }
     
+    
+    
+  })
+  
+  output$countries <- renderLeaflet({
+    
+    leaflet() %>%
+      #addTiles() %>%
+      addProviderTiles('OpenStreetMap.Mapnik') %>%
+      addPolygons(data = lnd, stroke = F, fillOpacity = 0.4, smoothFactor = 0.2, color = ~pal(cmean)) %>%
+      #setView(0, 40, zoom = 2.2) %>% nenacita tiles
+      addLegend(position = 'bottomleft',
+                pal = pal, 
+                values = lnd$cmean, 
+                title = 'Utilization',
+                opacity = 1)
     
     
   })
