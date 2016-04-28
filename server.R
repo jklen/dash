@@ -869,6 +869,23 @@ shinyServer(function(input, output, session) {
 
   })
   
+  mapLeg <- observe({
+    
+    if (!is.null(input$units) & input$tabs_1 == 'Map'){
+    
+      proxy <- leafletProxy('countries')
+      mes <- dataMap()@data$measure
+      
+      proxy %>% clearControls()
+      
+      proxy %>% addLegend(position = 'bottomleft',
+                          pal = colorpal(),
+                          values = mes)
+      
+    }
+    
+  })
+  
   output$countries <- renderLeaflet({
     
     if (input$tabs_1 == 'Map'){
