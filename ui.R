@@ -178,6 +178,8 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                leafletOutput('countries',
                              height = '600px'),
                
+               verbatimTextOutput('test2'),
+               
                absolutePanel(top = 50,
                              right = 20,
                              
@@ -208,7 +210,7 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                             min = 0,
                                             max = 1,
                                             value = 0.5,
-                                            step = 0.01,
+                                            step = 0.05,
                                             width = '200px'
                                 )
                              )

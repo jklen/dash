@@ -86,7 +86,7 @@ df_util <- loadData()
 
 ###################################### some testing
 
-lnd <- readOGR(dsn = 'C:\\Users\\IBM_ADMIN\\Desktop\\R\\worldBordersMap', layer = 'TM_WORLD_BORDERS-0.3')
+lnd <- readOGR(dsn = 'C:\\Users\\IBM_ADMIN\\Desktop\\R\\worldBordersMap', layer = 'ne_110m_admin_0_countries')
 wrldMap <- map('world', plot = F, fill = T)
 
 lnd@data <- lnd@data %>% left_join(countries_mean)

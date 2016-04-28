@@ -10,6 +10,7 @@ library(dplyr)
 library(lubridate)
 library(rpivotTable)
 library(leaflet)
+library(lazyeval)
 
 # data load
 
@@ -196,15 +197,10 @@ shinyServer(function(input, output, session) {
     
     # group reactive dataframe based on selected grouping
     
-    if (input$grouping == 'USER_NAME'){
+  
+    groups_toPlot <- c(input$grouping, 'YEARMONTH', 'USER_NAME', 'COUNTRY_NAME') 
       
-      groups_toPlot <- c('YEARMONTH', 'USER_NAME')
-      
-    } else {
-      
-      groups_toPlot <- c(input$grouping, 'YEARMONTH', 'USER_NAME') 
-      
-    }
+    
 
     df_util_reac <- df_util_reac %>% 
       group_by_(.dots = lapply(groups_toPlot, as.symbol)) %>%
@@ -565,7 +561,13 @@ shinyServer(function(input, output, session) {
     #input$inputs_brush
     #pass_df_selected()[as.numeric(input$selected_table_rows_selected), ]
     #input$inputs_dblclick
-    unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])
+    #unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])
+    
+  })
+  
+  output$test2 <- renderPrint({
+    
+    #dataMap()@data
     
   })
   
@@ -801,18 +803,84 @@ shinyServer(function(input, output, session) {
     
   })
   
+  dataMap <- reactive({
+    
+    if (!is.null(input$units) & input$tabs_1 == 'Map'){
+    
+      dfToJoin <- pass_df_util()[, c('COUNTRY_NAME', input$map_variable)]
+      
+      if (input$map_statistic == 'mean'){
+        
+        dfToJoin <- dfToJoin %>%
+          group_by(COUNTRY_NAME) %>%
+          summarise_(measure = interp(~mean(var, na.rm = T), var = as.name(input$map_variable))) %>%
+          ungroup()
+        
+      } else {
+        
+        if (input$map_statistic == 'quantile'){
+          
+          dfToJoin <- dfToJoin %>%
+            group_by(COUNTRY_NAME) %>%
+            summarise_(measure = interp(~quantile(var, probs = pr, na.rm = T), var = as.name(input$map_variable), pr = input$map_quant)) %>%
+            ungroup()
+        }
+        
+      }
+      
+      dfToJoin <- rename(dfToJoin, name = COUNTRY_NAME)
+      
+      lnd@data <- lnd@data %>% left_join(dfToJoin)
+      
+      lnd
+      
+    }
+    
+  })
+  
+  observe({
+    
+    if (!is.null(input$units) & input$tabs_1 == 'Map'){
+    
+      dat <- dataMap()
+      
+      proxy <- leafletProxy('countries')
+      
+      toShow <- proxy %>%
+        clearShapes() %>%
+        addPolygons(data = dat, color = ~colorpal()(measure), stroke = F, smoothFactor = 0.2, fillOpacity = 0.4)
+      
+      
+      toShow
+    }
+    
+  })
+  
+  colorpal <- reactive({
+    
+
+    if (!is.null(input$units) & input$tabs_1 == 'Map'){
+      
+      mes <- dataMap()@data$measure
+      
+      colorNumeric(palette = heat.colors(6), domain = mes)
+
+    }
+
+  })
+  
   output$countries <- renderLeaflet({
     
-    leaflet() %>%
-      #addTiles() %>%
-      addProviderTiles('OpenStreetMap.Mapnik') %>%
-      addPolygons(data = lnd, stroke = F, fillOpacity = 0.4, smoothFactor = 0.2, color = ~pal(cmean)) %>%
-      #setView(0, 40, zoom = 2.2) %>% nenacita tiles
-      addLegend(position = 'bottomleft',
-                pal = pal, 
-                values = lnd$cmean, 
-                title = 'Utilization',
-                opacity = 1)
+    if (input$tabs_1 == 'Map'){
+    
+      #pal <- colorpal()
+      
+      cmap <- leaflet() %>%
+        addTiles()
+
+      cmap
+      
+    }
     
     
   })
@@ -872,3 +940,7 @@ shinyServer(function(input, output, session) {
 # v tabulke user je v 34 riadku volaka cinska picovina, robi bordel - stlpec BUSNEED
   
 # filtre - date_range, util_value, reac_units -> grouping - grouping -> union - check_uplevel
+
+# MAPA  - datum, utilizacia filter -> zakl. data do leafletu na vykreslenie prazdnych polygonov ##### NETREBA???
+#       - unit filter do observera -> leafletproxy na prekreslovanie
+#       - 
