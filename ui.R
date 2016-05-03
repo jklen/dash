@@ -108,9 +108,13 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                  value = 5,
                                  step = 1),
                      
-                     checkboxInput(inputId = 'smooth',
-                                   label = 'Add regression line',
-                                   value = F)
+                     selectInput(inputId = 'smooth',
+                                   label = 'Smoothing',
+                                   choices = c('Mean' = 'mean',
+                                               'Regression' = 'regression',
+                                               'None' = 'none'),
+                                 multiple = F,
+                                 selected = 'none')
     )
 
   ),

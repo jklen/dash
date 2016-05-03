@@ -643,6 +643,196 @@ shinyServer(function(input, output, session) {
     
   })
   
+  
+  # inputs tab plot
+  
+  
+  output$utilization_inputs <- renderPlot({
+    
+    df <- dfToPlot$df
+    
+    if (!is.null(input$units)){
+      
+      if (input$color_var == 'none'){
+        
+        plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs), data = df) +
+          geom_point(alpha = 1/input$alpha, position = 'jitter') +
+          facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T) +
+          theme(#aspect.ratio  = 1, - bug pri brushingu
+            legend.position = 'none',
+            panel.background = element_rect(fill =NA),
+            panel.grid.major = element_line(colour = '#F6F6F6'),
+            axis.line = element_line(colour = '#BDBDBD'),
+            strip.background = element_rect(fill = '#e5e5ff'),
+            strip.text = element_text(face = 'bold'))
+        
+      } else {
+        
+        if (input$color_var != 'none'){
+          
+          plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs, color = input$color_var), data = df) +
+            geom_point(alpha = 1/input$alpha, position = 'jitter') +
+            facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T) +
+            scale_colour_gradientn(colours=rainbow(5)) +
+            theme(#aspect.ratio  = 1, - bug pri brushingu
+              #legend.position = 'none',
+              panel.background = element_rect(fill =NA),
+              panel.grid.major = element_line(colour = '#F6F6F6'),
+              axis.line = element_line(colour = '#BDBDBD'),
+              strip.background = element_rect(fill = '#e5e5ff'),
+              strip.text = element_text(face = 'bold')) 
+          
+        }
+      }
+      
+      if (input$smooth == 'regression'){
+        
+        plot_util_rel <- plot_util_rel + geom_smooth(method = 'lm', alpha = 0.05) 
+        
+      } else {
+        
+        if (input$smooth == 'mean'){
+        
+          plot_util_rel <- plot_util_rel + geom_smooth(alpha = 0.05)
+          
+        }
+        
+      }
+      
+      plot_util_rel
+      
+    }
+    
+  })
+  
+  
+  
+  # chart in Selected tab
+  
+  output$selected_chart <- renderPlot ({
+    
+    if (!is.null(input$inputs_brush) & !is.null(input$units) & !is.null(dfToPlot$df)){
+      
+      if (input$color_var_select %in% c('none', 'USER_NAME')){
+        
+        plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs_selected),
+                                data = pass_df_selected_brush()) +
+          geom_point(alpha = 1/input$alpha, position = 'jitter') +
+          theme(#legend.position = 'none',
+            panel.background = element_rect(fill =NA),
+            panel.grid.major = element_line(colour = '#F6F6F6'),
+            axis.line = element_line(colour = '#BDBDBD'),
+            strip.background = element_rect(fill = '#e5e5ff'),
+            strip.text = element_text(face = 'bold'))
+        
+        #plot_selected <- plot_selected + geom_point(alpha = 1/input$alpha, position = 'jitter')
+        
+      } else {
+        
+        if (input$color_var_select != input$grouping){
+          
+          plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs_selected, color = input$color_var_select),
+                                  data = pass_df_selected_brush()) +
+            geom_point(alpha = 1/input$alpha, position = 'jitter') +
+            scale_colour_gradientn(colours = rainbow(5)) +
+            theme(#legend.position = 'none',
+              panel.background = element_rect(fill =NA),
+              panel.grid.major = element_line(colour = '#F6F6F6'),
+              axis.line = element_line(colour = '#BDBDBD'),
+              strip.background = element_rect(fill = '#e5e5ff'),
+              strip.text = element_text(face = 'bold'))
+          
+          
+          # plot_selected <- plot_selected + 
+          #   geom_point(aes_string(color = input$color_var_select), alpha = 1/input$alpha, position = 'jitter') +
+          #   scale_colour_gradientn(colours = rainbow(5))
+          
+        } else {
+          
+          if (input$color_var_select == input$grouping){
+            
+            plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs_selected, color = input$color_var_select),
+                                    data = pass_df_selected_brush()) +
+              geom_point(alpha = 1/input$alpha, position = 'jitter') +
+              theme(#legend.position = 'none',
+                panel.background = element_rect(fill =NA),
+                panel.grid.major = element_line(colour = '#F6F6F6'),
+                axis.line = element_line(colour = '#BDBDBD'),
+                strip.background = element_rect(fill = '#e5e5ff'),
+                strip.text = element_text(face = 'bold'))
+            
+            # plot_selected <- plot_selected + geom_point(aes_string(color = input$color_var_select), alpha = 1/input$alpha, position = 'jitter')
+            
+          }
+          
+        }
+      }
+      
+      if (input$smooth == 'regression') {
+        
+        if (input$color_var_select == input$grouping){
+        
+          plot_selected <- plot_selected + geom_smooth(method = 'lm', aes_string(group = input$grouping), alpha = 0.05)
+          
+        } else {
+          
+          if (input$color_var_select != 'USER_NAME'){
+            
+            plot_selected <- plot_selected + geom_smooth(method = 'lm', alpha = 0.05) 
+            
+          }
+          
+        }
+          
+      } else {
+        
+        if (input$smooth == 'mean'){
+          
+          if (input$color_var_select == input$grouping){
+            
+            plot_selected <- plot_selected + geom_smooth(aes_string(group = input$grouping), alpha = 0.05)
+            
+          } else {
+            
+            if (input$color_var_select != 'USER_NAME'){
+              
+              plot_selected <- plot_selected + geom_smooth(alpha = 0.05) 
+              
+            }
+            
+          }
+ 
+        }
+        
+      }
+        
+        #plot_selected <- plot_selected + geom_smooth(method = 'lm') 
+        
+      
+      
+      if (!is.null(input$selected_table_rows_selected) & input$color_var_select == 'USER_NAME'){
+        
+        plot_selected <- plot_selected +
+          geom_point(data = pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),], size = 5, aes(color = USER_NAME))
+        
+        if (input$smooth == T){
+          
+          plot_selected <- plot_selected + geom_smooth(data = pass_df_selected_brush()[pass_df_selected_brush()$USER_NAME %in% unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])$USER_NAME,],
+                                                       aes_string(group = 'USER_NAME'), alpha = 0.05, method = 'lm')
+          
+          
+        }
+        
+      } 
+      
+      plot_selected
+      
+    }
+    
+    
+    
+  })
+  
   output$main_table <- renderRpivotTable({
     
     tab <- rpivotTable(df_util, rows = 'GEO_NAME', cols = 'YEARMONTH', aggregatorName = 'Average', vals = 'util_bill',
@@ -714,163 +904,6 @@ shinyServer(function(input, output, session) {
     
   })
   
-  # inputs tab plot
-  
-
-  output$utilization_inputs <- renderPlot({
-    
-    df <- dfToPlot$df
-    
-    if (!is.null(input$units)){
-      
-      if (input$color_var == 'none'){
-    
-        plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs), data = df) +
-          geom_point(alpha = 1/input$alpha, position = 'jitter') +
-          facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T) +
-          theme(#aspect.ratio  = 1, - bug pri brushingu
-                legend.position = 'none',
-                panel.background = element_rect(fill =NA),
-                panel.grid.major = element_line(colour = '#F6F6F6'),
-                axis.line = element_line(colour = '#BDBDBD'),
-                strip.background = element_rect(fill = '#e5e5ff'),
-                strip.text = element_text(face = 'bold'))
-      
-      } else {
-      
-        if (input$color_var != 'none'){
-          
-          plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs, color = input$color_var), data = df) +
-            geom_point(alpha = 1/input$alpha, position = 'jitter') +
-            facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T) +
-            scale_colour_gradientn(colours=rainbow(5)) +
-            theme(#aspect.ratio  = 1, - bug pri brushingu
-              #legend.position = 'none',
-              panel.background = element_rect(fill =NA),
-              panel.grid.major = element_line(colour = '#F6F6F6'),
-              axis.line = element_line(colour = '#BDBDBD'),
-              strip.background = element_rect(fill = '#e5e5ff'),
-              strip.text = element_text(face = 'bold')) 
-          
-        }
-      }
-      
-      if (input$smooth == T){
-        
-        plot_util_rel <- plot_util_rel + geom_smooth(method = 'lm', alpha = 0.05) 
-        
-      }
-      
-      plot_util_rel
-    
-    }
-    
-  })
-  
-  # chart in Selected tab
-  
-  output$selected_chart <- renderPlot ({
-    
-    if (!is.null(input$inputs_brush) & !is.null(input$units) & !is.null(dfToPlot$df)){
-      
-      if (input$color_var_select %in% c('none', 'USER_NAME')){
-        
-        plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs_selected),
-                                data = pass_df_selected_brush()) +
-          geom_point(alpha = 1/input$alpha, position = 'jitter') +
-          theme(#legend.position = 'none',
-            panel.background = element_rect(fill =NA),
-            panel.grid.major = element_line(colour = '#F6F6F6'),
-            axis.line = element_line(colour = '#BDBDBD'),
-            strip.background = element_rect(fill = '#e5e5ff'),
-            strip.text = element_text(face = 'bold'))
-        
-        #plot_selected <- plot_selected + geom_point(alpha = 1/input$alpha, position = 'jitter')
-        
-      } else {
-      
-        if (input$color_var_select != input$grouping){
-          
-          plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs_selected, color = input$color_var_select),
-                                  data = pass_df_selected_brush()) +
-            geom_point(alpha = 1/input$alpha, position = 'jitter') +
-            scale_colour_gradientn(colours = rainbow(5)) +
-            theme(#legend.position = 'none',
-              panel.background = element_rect(fill =NA),
-              panel.grid.major = element_line(colour = '#F6F6F6'),
-              axis.line = element_line(colour = '#BDBDBD'),
-              strip.background = element_rect(fill = '#e5e5ff'),
-              strip.text = element_text(face = 'bold'))
-          
-  
-          # plot_selected <- plot_selected + 
-          #   geom_point(aes_string(color = input$color_var_select), alpha = 1/input$alpha, position = 'jitter') +
-          #   scale_colour_gradientn(colours = rainbow(5))
-  
-        } else {
-          
-          if (input$color_var_select == input$grouping){
-            
-            plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs_selected, color = input$color_var_select),
-                                    data = pass_df_selected_brush()) +
-              geom_point(alpha = 1/input$alpha, position = 'jitter') +
-              theme(#legend.position = 'none',
-                panel.background = element_rect(fill =NA),
-                panel.grid.major = element_line(colour = '#F6F6F6'),
-                axis.line = element_line(colour = '#BDBDBD'),
-                strip.background = element_rect(fill = '#e5e5ff'),
-                strip.text = element_text(face = 'bold'))
-          
-            # plot_selected <- plot_selected + geom_point(aes_string(color = input$color_var_select), alpha = 1/input$alpha, position = 'jitter')
-          
-          }
-          
-        }
-      }
-      
-      if (input$smooth == T) {
-        
-        if (input$color_var_select == input$grouping){
-          
-          plot_selected <- plot_selected + geom_smooth(method = 'lm', aes_string(group = input$grouping), alpha = 0.05) 
-          
-        } else {
-          
-          if (input$color_var_select != 'USER_NAME'){
-            
-            plot_selected <- plot_selected + geom_smooth(method = 'lm', alpha = 0.05) 
-            
-          }
-          
-        }
-        
-        #plot_selected <- plot_selected + geom_smooth(method = 'lm') 
-        
-      }
-      
-      if (!is.null(input$selected_table_rows_selected) & input$color_var_select == 'USER_NAME'){
-        
-        plot_selected <- plot_selected +
-          geom_point(data = pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),], size = 5, aes(color = USER_NAME))
-        
-        if (input$smooth == T){
-          
-          plot_selected <- plot_selected + geom_smooth(data = pass_df_selected_brush()[pass_df_selected_brush()$USER_NAME %in% unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])$USER_NAME,],
-                                                       aes_string(group = 'USER_NAME'), alpha = 0.05, method = 'lm')
-          
-          #cat(file=stderr(), "UNIQUE", unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])) 
-          
-        }
-        
-      } 
-      
-    plot_selected
-      
-    }
-    
-    
-    
-  })
   
   
   # users in month selected with brush or with doubleclick in Inputs tab
