@@ -193,6 +193,10 @@ shinyServer(function(input, output, session) {
         
       }
       
+    } else {
+      
+      df_util_reac <- NULL 
+      
     }
     
     # group reactive dataframe based on selected grouping
@@ -200,7 +204,7 @@ shinyServer(function(input, output, session) {
   
     groups_toPlot <- c(input$grouping, 'YEARMONTH', 'USER_NAME', 'COUNTRY_NAME') 
       
-    
+    if (!is.null(df_util_reac)){
 
     df_util_reac <- df_util_reac %>% 
       group_by_(.dots = lapply(groups_toPlot, as.symbol)) %>%
@@ -209,10 +213,180 @@ shinyServer(function(input, output, session) {
                 exp_bill = sum(exp_bill)) %>%
       mutate(util_bill = (t_bill + t_inv)/exp_bill) %>%
       ungroup()
+    }
     
     df_util_reac
     
   })
+  
+  ############
+  
+  dfToPlot <- reactiveValues(df = NULL)
+  
+  observeEvent(input$units, {
+    
+    cat(file=stderr(), "-------------UNITS---------", input$units)
+    cat(file=stderr(), "-------------GROUPING---------", input$grouping)
+    
+    
+    df_util_reac <- pass_df()
+    
+      if (input$grouping == 'GEO_NAME'){
+        
+        df_util_reac <- df_util_reac[df_util_reac$GEO_NAME %in% input$units,]
+        
+        cat(file=stderr(), "-------------DF---------", unique(dfToPlot$df$GEO_NAME))
+        
+      } else {
+        
+        if (input$grouping == 'ORG_NAME'){
+          
+          df_util_reac <- df_util_reac[df_util_reac$ORG_NAME %in% input$units,]
+          
+        } else {
+          
+          if (input$grouping == 'DEPT_NAME'){
+            
+            df_util_reac <- df_util_reac[df_util_reac$DEPT_NAME %in% input$units,]
+            
+          } else {
+            
+            if (input$grouping == 'USER_NAME'){
+              
+              df_util_reac <- df_util_reac[df_util_reac$USER_NAME %in% input$units,]
+              
+            }
+            
+          }
+          
+        }
+        
+      }
+    
+    # group reactive dataframe based on selected grouping
+    
+    
+    groups_toPlot <- c(input$grouping, 'YEARMONTH', 'USER_NAME', 'COUNTRY_NAME') 
+    
+    if (!is.null(df_util_reac)){
+      
+      df_util_reac <- df_util_reac %>% 
+        group_by_(.dots = lapply(groups_toPlot, as.symbol)) %>%
+        summarise(t_bill = sum(t_bill), 
+                  t_inv = sum(t_inv), 
+                  exp_bill = sum(exp_bill)) %>%
+        mutate(util_bill = (t_bill + t_inv)/exp_bill) %>%
+        ungroup()
+    }
+    
+    dfToPlot$df <- df_util_reac
+    
+
+  })
+  
+  # reactive dataframe based on brushed in Inputs tab, goes to chart and table in Select tab
+  
+  pass_df_selected_brush <- reactive ({
+    
+    df <- dfToPlot$df
+    
+    if (!is.null(input$inputs_brush) & !is.null(input$units)){
+      
+      if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 != '(all)'){
+        
+        selected_brush <- df[df$YEARMONTH == input$inputs_brush$panelvar2 &
+                               df$util_bill >= input$inputs_brush$xmin &
+                               df$util_bill <= input$inputs_brush$xmax &
+                               df[input$util_inputs] >= input$inputs_brush$ymin &
+                               df[input$util_inputs] <= input$inputs_brush$ymax, ]
+        
+      } else {
+        
+        if (input$inputs_brush$panelvar1 != '(all)' & input$inputs_brush$panelvar2 == '(all)'){
+          
+          selected_brush <- df[df[input$grouping] == input$inputs_brush$panelvar1 &
+                                 df$util_bill >= input$inputs_brush$xmin &
+                                 df$util_bill <= input$inputs_brush$xmax &
+                                 df[input$util_inputs] >= input$inputs_brush$ymin &
+                                 df[input$util_inputs] <= input$inputs_brush$ymax, ] 
+          
+        } else {
+          
+          if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 == '(all)'){
+            
+            selected_brush <- df[df$util_bill >= input$inputs_brush$xmin &
+                                   df$util_bill <= input$inputs_brush$xmax &
+                                   df[input$util_inputs] >= input$inputs_brush$ymin &
+                                   df[input$util_inputs] <= input$inputs_brush$ymax, ] 
+            
+          } else {
+            
+            selected_brush <- brushedPoints(df, 
+                                            input$inputs_brush, 
+                                            'util_bill', 
+                                            input$util_inputs)
+            
+          }
+        }
+        
+      }
+      
+      selected_brush
+
+    }
+    
+  })
+  
+  output$Utilization_marginal1 <- renderPlot({
+    
+    # cat(file=stderr(), "-------------UNITS---------", input$units)
+    # cat(file=stderr(), "-------------GROUPING---------", input$grouping)
+    
+    df <- dfToPlot$df
+    
+    if (!is.null(dfToPlot$df) & !is.null(input$units)){
+    
+      cat(file=stderr(), "-------------PLOTDF---------", unique(df$GEO_NAME))
+      
+      plot_util_marg1 <- ggplot(aes(x = util_bill), data = df) +
+        geom_histogram(fill = '#F79420', color = 'black') +
+        geom_vline(xintercept = mean(df$util_bill)) +
+        geom_vline(xintercept = as.numeric(mean(df$util_bill, na.rm = T)),
+                   color = 'red') +
+        geom_vline(xintercept = as.numeric(median(df$util_bill, na.rm = T)),
+                   color = 'blue') +
+        geom_vline(xintercept = as.numeric(quantile(df$util_bill,
+                                                    probs = 0.25, na.rm = T)),
+                   linetype = 2, color = 'blue') +
+        geom_vline(xintercept = as.numeric(quantile(df$util_bill,
+                                                    probs = 0.75, na.rm = T)),
+                   linetype = 2, color = 'blue') +
+        geom_vline(xintercept = as.numeric(quantile(df$util_bill,
+                                                    probs = 0.1, na.rm = T)),
+                   linetype = 3) +
+        geom_vline(xintercept = as.numeric(quantile(df$util_bill,
+                                                    probs = 0.9, na.rm = T)),
+                   linetype = 3) +
+        theme(panel.background = element_rect(fill =NA),
+              panel.grid.major = element_line(colour = '#F6F6F6'),
+              axis.line = element_line(colour = '#BDBDBD'),
+              axis.title.y = element_blank())
+      
+      if (!is.null(range)){
+        
+        plot_util_marg1 <- plot_util_marg1 + coord_flip(xlim = range$y)
+        
+      }
+      
+      plot_util_marg1
+      
+    }
+      
+    
+    
+  })
+  
+  ##############
   
   
   # for plot zooming
@@ -240,13 +414,15 @@ shinyServer(function(input, output, session) {
   
   output$utilization_YM <- renderPlot({
     
+    df <- dfToPlot$df
+    
     if (!is.null(input$units)){
       
       if (input$grouping != 'USER_NAME'){
         
         if (input$mainPlotVis == 'Boxplots'){
       
-          plot_util_YM <- ggplot(aes_string(y = 'util_bill', fill = input$grouping), data = pass_df_util()) + 
+          plot_util_YM <- ggplot(aes_string(y = 'util_bill', fill = input$grouping), data = df) + 
             geom_boxplot(aes(x = factor(YEARMONTH))) +
             geom_point(aes(x = factor(YEARMONTH)), 
                        position=position_dodge(width=0.75), 
@@ -267,7 +443,7 @@ shinyServer(function(input, output, session) {
          
           if (input$mainPlotVis == 'Stacked barchart with counts') {
             
-            plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = pass_df_util()) +
+            plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = df) +
               geom_bar(aes(x = factor(YEARMONTH)), position = 'stack') +
               theme(panel.background = element_rect(fill =NA),
                     panel.grid.major = element_line(colour = '#F6F6F6'),
@@ -277,7 +453,7 @@ shinyServer(function(input, output, session) {
             
             if (input$mainPlotVis == 'Stacked relative barchart'){
               
-              plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = pass_df_util()) +
+              plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = df) +
                 geom_bar(aes(x = factor(YEARMONTH)), position = 'fill') +
                 theme(panel.background = element_rect(fill =NA),
                       panel.grid.major = element_line(colour = '#F6F6F6'),
@@ -287,7 +463,7 @@ shinyServer(function(input, output, session) {
               
               if (input$mainPlotVis == 'Dodged barchart'){
                 
-                plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = pass_df_util()) +
+                plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = df) +
                   geom_bar(aes(x = factor(YEARMONTH)),position = 'dodge') +
                   theme(panel.background = element_rect(fill =NA),
                         panel.grid.major = element_line(colour = '#F6F6F6'),
@@ -362,54 +538,15 @@ shinyServer(function(input, output, session) {
     
   })
   
-  
-  output$Utilization_marginal1 <- renderPlot({
-    
-    if (!is.null(input$units)){
-    
-      plot_util_marg1 <- ggplot(aes(x = util_bill), data = pass_df_util()) +
-        geom_histogram(fill = '#F79420', color = 'black') +
-        geom_vline(xintercept = mean(pass_df_util()$util_bill)) +
-        geom_vline(xintercept = as.numeric(mean(pass_df_util()$util_bill, na.rm = T)),
-                   color = 'red') +
-        geom_vline(xintercept = as.numeric(median(pass_df_util()$util_bill, na.rm = T)),
-                   color = 'blue') +
-        geom_vline(xintercept = as.numeric(quantile(pass_df_util()$util_bill,
-                                                    probs = 0.25, na.rm = T)),
-                   linetype = 2, color = 'blue') +
-        geom_vline(xintercept = as.numeric(quantile(pass_df_util()$util_bill,
-                                                    probs = 0.75, na.rm = T)),
-                   linetype = 2, color = 'blue') +
-        geom_vline(xintercept = as.numeric(quantile(pass_df_util()$util_bill,
-                                                    probs = 0.1, na.rm = T)),
-                   linetype = 3) +
-        geom_vline(xintercept = as.numeric(quantile(pass_df_util()$util_bill,
-                                                    probs = 0.9, na.rm = T)),
-                   linetype = 3) +
-        theme(panel.background = element_rect(fill =NA),
-              panel.grid.major = element_line(colour = '#F6F6F6'),
-              axis.line = element_line(colour = '#BDBDBD'),
-              axis.title.y = element_blank())
-    
-      if (!is.null(range)){
-        
-        plot_util_marg1 <- plot_util_marg1 + coord_flip(xlim = range$y)
-        
-      }
-      
-      plot_util_marg1
-     
-    }
-    
-  })
-  
   output$Utilization_marginal2 <- renderPlot({
+    
+    df <- dfToPlot$df
     
     if (!is.null(input$units)){
       
       if (input$marginalVis == 'Boxplots'){
         
-        plot_util_marg2 <- ggplot(aes_string(y = 'util_bill', x = input$grouping, fill = input$grouping), data = pass_df_util()) +
+        plot_util_marg2 <- ggplot(aes_string(y = 'util_bill', x = input$grouping, fill = input$grouping), data = df) +
           geom_boxplot() +
           geom_point(fun.y = mean, stat = 'summary', shape = 1) +
           geom_point(fun.y = quantile, fun.args=list(probs=0.1),
@@ -435,7 +572,7 @@ shinyServer(function(input, output, session) {
         
         if (input$marginalVis == 'Overlaid histograms'){
 
-            plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = pass_df_util()) +
+            plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = df) +
             geom_histogram(alpha = 0.4, position = 'identity') + 
             theme(legend.position = 'none',
                   panel.background = element_rect(fill =NA),
@@ -455,7 +592,7 @@ shinyServer(function(input, output, session) {
             
           if (input$marginalVis == 'Stacked histograms'){
             
-            plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = pass_df_util()) +
+            plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = df) +
               geom_histogram() +
               theme(legend.position = 'none',
                     panel.background = element_rect(fill =NA),
@@ -477,7 +614,7 @@ shinyServer(function(input, output, session) {
             
             if (input$marginalVis == 'Stacked relative barchart'){
               
-              plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = pass_df_util()) +
+              plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = df) +
                 geom_histogram(position = 'fill') +
                 ylab('%') +
                 theme(legend.position = 'none',
@@ -517,9 +654,11 @@ shinyServer(function(input, output, session) {
   
   output$main_summary <- renderPrint ({
     
+    df <- dfToPlot$df
+    
     if (!is.null(input$units)){
       
-      by(data = pass_df_util()$util_bill, INDICES = pass_df_util()[, c(input$grouping, 'YEARMONTH')], summary)
+      by(data = df$util_bill, INDICES = df[, c(input$grouping, 'YEARMONTH')], summary)
       
     }
     
@@ -529,9 +668,11 @@ shinyServer(function(input, output, session) {
   
   output$marginal_summary <- renderPrint({
     
+    df <- dfToPlot$df
+    
     if (!is.null(input$units)){
       
-      summary(pass_df_util()$util_bill)
+      summary(df$util_bill)
       
     }
     
@@ -539,9 +680,11 @@ shinyServer(function(input, output, session) {
   
   output$marginal_summary2 <- renderPrint({
     
+    df <- dfToPlot$df
+    
     if (!is.null(input$units)){
       
-      by(data = pass_df_util()$util_bill, INDICES = pass_df_util()[, input$grouping], summary)
+      by(data = df$util_bill, INDICES = df[, input$grouping], summary)
 
     }
     
@@ -576,11 +719,13 @@ shinyServer(function(input, output, session) {
 
   output$utilization_inputs <- renderPlot({
     
+    df <- dfToPlot$df
+    
     if (!is.null(input$units)){
       
       if (input$color_var == 'none'){
     
-        plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs), data = pass_df_util()) +
+        plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs), data = df) +
           geom_point(alpha = 1/input$alpha, position = 'jitter') +
           facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T) +
           theme(#aspect.ratio  = 1, - bug pri brushingu
@@ -595,7 +740,7 @@ shinyServer(function(input, output, session) {
       
         if (input$color_var != 'none'){
           
-          plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs, color = input$color_var), data = pass_df_util()) +
+          plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs, color = input$color_var), data = df) +
             geom_point(alpha = 1/input$alpha, position = 'jitter') +
             facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T) +
             scale_colour_gradientn(colours=rainbow(5)) +
@@ -626,7 +771,7 @@ shinyServer(function(input, output, session) {
   
   output$selected_chart <- renderPlot ({
     
-    if (!is.null(input$inputs_brush) & !is.null(input$units)){
+    if (!is.null(input$inputs_brush) & !is.null(input$units) & !is.null(dfToPlot$df)){
       
       if (input$color_var_select %in% c('none', 'USER_NAME')){
         
@@ -727,63 +872,6 @@ shinyServer(function(input, output, session) {
     
   })
   
-
-  # reactive dataframe based on brushed in Inputs tab, goes to chart and table in Select tab
-  
-  pass_df_selected_brush <- reactive ({
-    
-      if (!is.null(input$inputs_brush) & !is.null(input$units)){
-        
-        if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 != '(all)'){
-          
-          selected_brush <- pass_df_util()[pass_df_util()$YEARMONTH == input$inputs_brush$panelvar2 &
-                                       pass_df_util()$util_bill >= input$inputs_brush$xmin &
-                                       pass_df_util()$util_bill <= input$inputs_brush$xmax &
-                                       pass_df_util()[input$util_inputs] >= input$inputs_brush$ymin &
-                                       pass_df_util()[input$util_inputs] <= input$inputs_brush$ymax, ]
-          
-        } else {
-          
-          if (input$inputs_brush$panelvar1 != '(all)' & input$inputs_brush$panelvar2 == '(all)'){
-            
-            selected_brush <- pass_df_util()[pass_df_util()[input$grouping] == input$inputs_brush$panelvar1 &
-                                         pass_df_util()$util_bill >= input$inputs_brush$xmin &
-                                         pass_df_util()$util_bill <= input$inputs_brush$xmax &
-                                         pass_df_util()[input$util_inputs] >= input$inputs_brush$ymin &
-                                         pass_df_util()[input$util_inputs] <= input$inputs_brush$ymax, ] 
-            
-          } else {
-            
-            if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 == '(all)'){
-              
-              selected_brush <- pass_df_util()[pass_df_util()$util_bill >= input$inputs_brush$xmin &
-                                           pass_df_util()$util_bill <= input$inputs_brush$xmax &
-                                           pass_df_util()[input$util_inputs] >= input$inputs_brush$ymin &
-                                           pass_df_util()[input$util_inputs] <= input$inputs_brush$ymax, ] 
-              
-            } else {
-              
-              selected_brush <- brushedPoints(pass_df_util(), 
-                                        input$inputs_brush, 
-                                        'util_bill', 
-                                        input$util_inputs)
-              
-            }
-          }
-          
-        }
-        
-        
-        selected_brush
-        #selected
-        
-      }
-      
-    
-    
-    
-    
-  })
   
   # users in month selected with brush or with doubleclick in Inputs tab
   
@@ -805,13 +893,15 @@ shinyServer(function(input, output, session) {
   
   dataMap <- reactive({
     
-    if (!is.null(input$units) & input$tabs_1 == 'Map'){
+    df <- dfToPlot$df
     
-      dfToJoin <- pass_df_util()[, c('COUNTRY_NAME', input$map_variable)]
+    if (!is.null(input$units) & input$tabs_1 == 'Map' & !is.null(df)){
+    
+      df <- df[, c('COUNTRY_NAME', 'YEARMONTH', input$map_variable)]
       
       if (input$map_statistic == 'mean'){
         
-        dfToJoin <- dfToJoin %>%
+        dfToJoin <- df %>%
           group_by(COUNTRY_NAME) %>%
           summarise_(measure = interp(~mean(var, na.rm = T), var = as.name(input$map_variable))) %>%
           ungroup()
@@ -820,46 +910,56 @@ shinyServer(function(input, output, session) {
         
         if (input$map_statistic == 'quantile'){
           
-          dfToJoin <- dfToJoin %>%
+          dfToJoin <- df %>%
             group_by(COUNTRY_NAME) %>%
             summarise_(measure = interp(~quantile(var, probs = pr, na.rm = T), var = as.name(input$map_variable), pr = input$map_quant)) %>%
             ungroup()
+          
+          
         }
         
       }
       
+      dfToJoin <- df %>%
+        group_by(COUNTRY_NAME) %>%
+        summarise(YM_meanCount = n()/length(unique(df$YEARMONTH))) %>%
+        ungroup() %>%
+        inner_join(dfToJoin)
+     
       dfToJoin <- rename(dfToJoin, name = COUNTRY_NAME)
       
       lnd@data <- lnd@data %>% left_join(dfToJoin)
       
       lnd
       
-    }
+    } 
     
   })
   
+  # add polygons
+  
   observe({
     
-    if (!is.null(input$units) & input$tabs_1 == 'Map'){
-    
-      dat <- dataMap()
-      
-      proxy <- leafletProxy('countries')
+    dat <- dataMap()
+    proxy <- leafletProxy('countries')
+ 
+    if (!is.null(dat) & input$tabs_1 == 'Map'){
       
       toShow <- proxy %>%
         clearShapes() %>%
-        addPolygons(data = dat, color = ~colorpal()(measure), stroke = F, smoothFactor = 0.2, fillOpacity = 0.4)
-      
+        addPolygons(data = dat, color = ~colorpal()(measure), stroke = F, smoothFactor = 0.2, fillOpacity = 0.4) #%>%
+        #addCircles(data = dat, radius = YM_meanCount, weight = 1, color = '#777777', fillColor = '#7f7fff', fillOpacity = 0.4)
       
       toShow
+    } else {
+      proxy %>% clearShapes()
     }
     
   })
   
   colorpal <- reactive({
-    
-
-    if (!is.null(input$units) & input$tabs_1 == 'Map'){
+   
+    if (!is.null(dataMap())){
       
       mes <- dataMap()@data$measure
       
@@ -869,19 +969,24 @@ shinyServer(function(input, output, session) {
 
   })
   
-  mapLeg <- observe({
+  # add legend
+  
+  observe({
     
-    if (!is.null(input$units) & input$tabs_1 == 'Map'){
-    
-      proxy <- leafletProxy('countries')
+    proxy <- leafletProxy('countries')
+
+    if (!is.null(dataMap()) & input$tabs_1 == 'Map'){
+      
       mes <- dataMap()@data$measure
       
-      proxy %>% clearControls()
-      
-      proxy %>% addLegend(position = 'bottomleft',
+      proxy %>% 
+        clearControls() %>%
+        addLegend(position = 'bottomleft',
                           pal = colorpal(),
                           values = mes)
       
+    } else {
+      proxy %>% clearControls()
     }
     
   })
