@@ -96,6 +96,8 @@ pal <- colorNumeric(palette = 'Blues', domain = lnd$cmean) # definovanie palety 
 leaflet() %>% addPolygons(data = lnd, stroke = F, fillOpacity = 0.4, smoothFactor = 0.2, color = ~pal(cmean)) %>% addTiles()
 leaflet(data = wrldMap) %>% addPolygons() %>% addTiles()
 
+lnd[SpatialPoints(coords = matrix(c(19.50766, 48.72671), ncol = 2), proj4string = CRS(proj4string(lnd))), ]@data$name # nazov krajiny podla coordinatov
+
 # http://stackoverflow.com/questions/21435139/combine-geom-boxplot-with-geom-line
 # https://github.com/rstudio/shiny/issues/678
 # http://deanattali.com/2015/03/29/ggExtra-r-package/
@@ -111,3 +113,5 @@ leaflet(data = wrldMap) %>% addPolygons() %>% addTiles()
 # http://stackoverflow.com/questions/13445753/force-ggplot2-scatter-plot-to-be-square-shaped - pri facetingu funguje theme
 # http://stackoverflow.com/questions/23224142/converting-data-frame-to-xts-order-by-requires-an-appropriate-time-based-object xts akceptuje Date, timeDate, POSIXct
 # http://stackoverflow.com/questions/29716868/r-shiny-how-to-get-an-reactive-data-frame-updated-each-time-pressing-an-actionb
+# http://stackoverflow.com/questions/29065871/interactive-map-with-leafletr-variable-point-size legenda na point size - trocha komplikovane
+#

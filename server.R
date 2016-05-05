@@ -10,6 +10,8 @@ library(dplyr)
 library(lubridate)
 library(rpivotTable)
 library(leaflet)
+library(rgdal)
+library(rgeos)
 library(lazyeval)
 
 # data load
@@ -349,7 +351,7 @@ shinyServer(function(input, output, session) {
       cat(file=stderr(), "-------------PLOTDF---------", unique(df$GEO_NAME))
       
       plot_util_marg1 <- ggplot(aes(x = util_bill), data = df) +
-        geom_histogram(fill = '#F79420', color = 'black') +
+        geom_histogram(fill = '#F79420', color = 'black', bins = input$bins, alpha = 0.5) +
         geom_vline(xintercept = mean(df$util_bill)) +
         geom_vline(xintercept = as.numeric(mean(df$util_bill, na.rm = T)),
                    color = 'red') +
@@ -423,7 +425,7 @@ shinyServer(function(input, output, session) {
         if (input$mainPlotVis == 'Boxplots'){
       
           plot_util_YM <- ggplot(aes_string(y = 'util_bill', fill = input$grouping), data = df) + 
-            geom_boxplot(aes(x = factor(YEARMONTH))) +
+            geom_boxplot(aes(x = factor(YEARMONTH)), alpha = 0.5) +
             geom_point(aes(x = factor(YEARMONTH)), 
                        position=position_dodge(width=0.75), 
                        fun.y = mean, stat = 'summary', shape = 1) +
@@ -444,7 +446,7 @@ shinyServer(function(input, output, session) {
           if (input$mainPlotVis == 'Stacked barchart with counts') {
             
             plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = df) +
-              geom_bar(aes(x = factor(YEARMONTH)), position = 'stack') +
+              geom_bar(aes(x = factor(YEARMONTH)), position = 'stack', alpha = 0.5) +
               theme(panel.background = element_rect(fill =NA),
                     panel.grid.major = element_line(colour = '#F6F6F6'),
                     axis.line = element_line(colour = '#BDBDBD'))
@@ -454,7 +456,7 @@ shinyServer(function(input, output, session) {
             if (input$mainPlotVis == 'Stacked relative barchart'){
               
               plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = df) +
-                geom_bar(aes(x = factor(YEARMONTH)), position = 'fill') +
+                geom_bar(aes(x = factor(YEARMONTH)), position = 'fill', alpha = 0.5) +
                 theme(panel.background = element_rect(fill =NA),
                       panel.grid.major = element_line(colour = '#F6F6F6'),
                       axis.line = element_line(colour = '#BDBDBD'))
@@ -464,7 +466,7 @@ shinyServer(function(input, output, session) {
               if (input$mainPlotVis == 'Dodged barchart'){
                 
                 plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = df) +
-                  geom_bar(aes(x = factor(YEARMONTH)),position = 'dodge') +
+                  geom_bar(aes(x = factor(YEARMONTH)),position = 'dodge', alpha = 0.5) +
                   theme(panel.background = element_rect(fill =NA),
                         panel.grid.major = element_line(colour = '#F6F6F6'),
                         axis.line = element_line(colour = '#BDBDBD')) 
@@ -547,7 +549,7 @@ shinyServer(function(input, output, session) {
       if (input$marginalVis == 'Boxplots'){
         
         plot_util_marg2 <- ggplot(aes_string(y = 'util_bill', x = input$grouping, fill = input$grouping), data = df) +
-          geom_boxplot() +
+          geom_boxplot(alpha = 0.5) +
           geom_point(fun.y = mean, stat = 'summary', shape = 1) +
           geom_point(fun.y = quantile, fun.args=list(probs=0.1),
                      stat = 'summary', shape = 4) +
@@ -573,7 +575,7 @@ shinyServer(function(input, output, session) {
         if (input$marginalVis == 'Overlaid histograms'){
 
             plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = df) +
-            geom_histogram(alpha = 0.4, position = 'identity') + 
+            geom_histogram(alpha = 0.4, position = 'identity', bins = input$bins) + 
             theme(legend.position = 'none',
                   panel.background = element_rect(fill =NA),
                   panel.grid.major = element_line(colour = '#F6F6F6'),
@@ -593,7 +595,7 @@ shinyServer(function(input, output, session) {
           if (input$marginalVis == 'Stacked histograms'){
             
             plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = df) +
-              geom_histogram() +
+              geom_histogram(bins = input$bins, alpha = 0.5) +
               theme(legend.position = 'none',
                     panel.background = element_rect(fill =NA),
                     panel.grid.major = element_line(colour = '#F6F6F6'),
@@ -615,7 +617,7 @@ shinyServer(function(input, output, session) {
             if (input$marginalVis == 'Stacked relative barchart'){
               
               plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = df) +
-                geom_histogram(position = 'fill') +
+                geom_histogram(position = 'fill', bins = input$bins, alpha = 0.5) +
                 ylab('%') +
                 theme(legend.position = 'none',
                       panel.background = element_rect(fill =NA),
@@ -815,11 +817,19 @@ shinyServer(function(input, output, session) {
         plot_selected <- plot_selected +
           geom_point(data = pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),], size = 5, aes(color = USER_NAME))
         
-        if (input$smooth == T){
+        if (input$smooth == 'regression'){
           
           plot_selected <- plot_selected + geom_smooth(data = pass_df_selected_brush()[pass_df_selected_brush()$USER_NAME %in% unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])$USER_NAME,],
                                                        aes_string(group = 'USER_NAME'), alpha = 0.05, method = 'lm')
+       
+        } else {
           
+          if (input$smooth == 'mean'){
+            
+            plot_selected <- plot_selected + geom_smooth(data = pass_df_selected_brush()[pass_df_selected_brush()$USER_NAME %in% unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])$USER_NAME,],
+                                                         aes_string(group = 'USER_NAME'), alpha = 0.05)
+            
+          }
           
         }
         
@@ -897,13 +907,15 @@ shinyServer(function(input, output, session) {
     #unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])
     
   })
-  
+  # 
   output$test2 <- renderPrint({
-    
-    #dataMap()@data
-    
+
+    clickedCountry()
+
+    #userCountry_map()
+
   })
-  
+
   
   
   # users in month selected with brush or with doubleclick in Inputs tab
@@ -924,6 +936,8 @@ shinyServer(function(input, output, session) {
     
   })
   
+  # creating reactive polygonsdataframe with user countries of selected units to plot map
+  
   dataMap <- reactive({
     
     df <- dfToPlot$df
@@ -941,7 +955,7 @@ shinyServer(function(input, output, session) {
         
       } else {
         
-        if (input$map_statistic == 'quantile'){
+        if (input$map_statistic == 'percentile'){
           
           dfToJoin <- df %>%
             group_by(COUNTRY_NAME) %>%
@@ -974,14 +988,32 @@ shinyServer(function(input, output, session) {
   observe({
     
     dat <- dataMap()
+    
     proxy <- leafletProxy('countries')
  
     if (!is.null(dat) & input$tabs_1 == 'Map'){
       
+      datCircles <- as.data.frame(gCentroid(dat, byid = T))
+      datCircles$YM_meanCount <- dat$YM_meanCount * 20000
+      datCircles <- datCircles[!is.na(datCircles$YM_meanCount),]
+      datCircles <- datCircles %>%
+        arrange(desc(YM_meanCount))
+      
       toShow <- proxy %>%
         clearShapes() %>%
-        addPolygons(data = dat, color = ~colorpal()(measure), stroke = F, smoothFactor = 0.2, fillOpacity = 0.4) #%>%
-        #addCircles(data = dat, radius = YM_meanCount, weight = 1, color = '#777777', fillColor = '#7f7fff', fillOpacity = 0.4)
+        addPolygons(data = dat, 
+                    color = ~colorpal()(measure), 
+                    stroke = F, smoothFactor = 0.2, 
+                    fillOpacity = 0.4) %>%
+        addCircles(data = datCircles, 
+                   radius = ~YM_meanCount, 
+                   lng = ~x, 
+                   lat = ~y, 
+                   weight = 1, 
+                   color = '#777777', 
+                   fillColor = '#4c4cff', 
+                   fillOpacity = 0.3,
+                   popup = ~paste('Average number of users in month: ', as.character(round(YM_meanCount/20000,2))))
       
       toShow
     } else {
@@ -1037,6 +1069,27 @@ shinyServer(function(input, output, session) {
       
     }
     
+    
+  })
+  
+  clickedCountry <- reactive({
+    
+    req(input$countries_shape_click)
+    
+    lat <- input$countries_shape_click$lat
+    lon <- input$countries_shape_click$lng
+    coo <- matrix(c(lon, lat), ncol = 2)
+    
+    ctr <- lnd[SpatialPoints(coords = coo, proj4string = CRS(proj4string(lnd))), ]@data$name
+   
+    ctr
+     
+  })
+  
+  output$usersCountry_table <- DT::renderDataTable({
+    
+    dat <- pass_df_util()
+    dat[dat$COUNTRY_NAME == clickedCountry(),]
     
   })
   

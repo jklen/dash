@@ -69,7 +69,15 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                   choices = c('Boxplots', 'Stacked histograms', 'Stacked relative barchart', 'Overlaid histograms'),
                                   multiple = F,
                                   selected = 'Boxplots'
-                    )
+                    ),
+                    
+                    sliderInput(inputId = 'bins',
+                                label = 'Nr. of bins',
+                                min = 10,
+                                max = 100,
+                                value = 30,
+                                step = 1
+                    )            
     ),
     
     conditionalPanel(condition = "input.tabs_1 == 'Inputs'",
@@ -110,8 +118,8 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                      
                      selectInput(inputId = 'smooth',
                                    label = 'Smoothing',
-                                   choices = c('Mean' = 'mean',
-                                               'Regression' = 'regression',
+                                   choices = c('Conditional mean' = 'mean',
+                                               'Linear regression' = 'regression',
                                                'None' = 'none'),
                                  multiple = F,
                                  selected = 'none')
@@ -184,11 +192,13 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                
                verbatimTextOutput('test2'),
                
+               DT::dataTableOutput('usersCountry_table'),
+               
                absolutePanel(top = 50,
                              right = 20,
                              
                              selectInput('map_variable',
-                                         label = 'Select variable',
+                                         label = 'Color variable',
                                          choices = c('Utilization' = 'util_bill',
                                                      'Tracked billable' = 't_bill',
                                                      'Tracked investment' = 't_inv',
@@ -199,15 +209,15 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                          width = '200px'),
                              
                              selectInput('map_statistic',
-                                         label = 'Select statistic',
+                                         label = NULL,
                                          choices = c('Mean' = 'mean',
-                                                     'Quantile' = 'quantile'),
+                                                     'Percentile' = 'percentile'),
                                          multiple = F,
                                          selected = 'mean',
                                          selectize = T,
                                          width = '200px'),
                              
-                             conditionalPanel(condition = "input.map_statistic == 'quantile'",
+                             conditionalPanel(condition = "input.map_statistic == 'percentile'",
                                               
                                 sliderInput('map_quant',
                                             label = NULL,
@@ -217,7 +227,45 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                             step = 0.05,
                                             width = '200px'
                                 )
+                             ),
+                             
+                             checkboxInput(inputId = 'includeCircle',
+                                           label = 'Include circles',
+                                           value = F,
+                                           width = '200px'
+                              ),
+                             
+                             conditionalPanel(condition = "input.includeCircle == true",
+                             
+                                uiOutput('circleVar',
+                                        width = '200px'),
+                                
+                                selectInput('circle_statistic',
+                                            label = NULL,
+                                            choices = c('Mean' = 'mean',
+                                                        'Percentile' = 'percentile'),
+                                            multiple = F,
+                                            selected = 'mean',
+                                            selectize = T,
+                                            width = '200px')
+                                
+                                
+                             ),
+                             
+                             conditionalPanel(condition = "input.includeCircle == true & input.circle_statistic == 'percentile'",
+
+                                              sliderInput('circle_quant',
+                                                          label = NULL,
+                                                          min = 0,
+                                                          max = 1,
+                                                          value = 0.5,
+                                                          step = 0.05,
+                                                          width = '200px'
+                                              )
+
                              )
+                             
+                             
                )
       ),
       
