@@ -70,7 +70,7 @@ shinyServer(function(input, output, session) {
                 choices = c('Tracked billable' = 't_bill',
                             'Expected billable' = 'exp_bill',
                             'Tracked investment' = 't_inv'),
-                label = 'Y variable',
+                label = 'X variable',
                 multiple = F,
                 selected = input$util_inputs
     )
@@ -297,36 +297,36 @@ shinyServer(function(input, output, session) {
       if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 != '(all)'){
         
         selected_brush <- df[df$YEARMONTH == input$inputs_brush$panelvar2 &
-                               df$util_bill >= input$inputs_brush$xmin &
-                               df$util_bill <= input$inputs_brush$xmax &
-                               df[input$util_inputs] >= input$inputs_brush$ymin &
-                               df[input$util_inputs] <= input$inputs_brush$ymax, ]
+                               df$util_bill >= input$inputs_brush$ymin &
+                               df$util_bill <= input$inputs_brush$ymax &
+                               df[input$util_inputs] >= input$inputs_brush$xmin &
+                               df[input$util_inputs] <= input$inputs_brush$xmax, ]
         
       } else {
         
         if (input$inputs_brush$panelvar1 != '(all)' & input$inputs_brush$panelvar2 == '(all)'){
           
           selected_brush <- df[df[input$grouping] == input$inputs_brush$panelvar1 &
-                                 df$util_bill >= input$inputs_brush$xmin &
-                                 df$util_bill <= input$inputs_brush$xmax &
-                                 df[input$util_inputs] >= input$inputs_brush$ymin &
-                                 df[input$util_inputs] <= input$inputs_brush$ymax, ] 
+                                 df$util_bill >= input$inputs_brush$ymin &
+                                 df$util_bill <= input$inputs_brush$ymax &
+                                 df[input$util_inputs] >= input$inputs_brush$xmin &
+                                 df[input$util_inputs] <= input$inputs_brush$xmax, ] 
           
         } else {
           
           if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 == '(all)'){
             
-            selected_brush <- df[df$util_bill >= input$inputs_brush$xmin &
-                                   df$util_bill <= input$inputs_brush$xmax &
-                                   df[input$util_inputs] >= input$inputs_brush$ymin &
-                                   df[input$util_inputs] <= input$inputs_brush$ymax, ] 
+            selected_brush <- df[df$util_bill >= input$inputs_brush$ymin &
+                                   df$util_bill <= input$inputs_brush$ymax &
+                                   df[input$util_inputs] >= input$inputs_brush$xmin &
+                                   df[input$util_inputs] <= input$inputs_brush$xmax, ] 
             
           } else {
             
             selected_brush <- brushedPoints(df, 
-                                            input$inputs_brush, 
-                                            'util_bill', 
-                                            input$util_inputs)
+                                            input$inputs_brush,
+                                            input$util_inputs,
+                                            'util_bill')
             
           }
         }
@@ -391,7 +391,7 @@ shinyServer(function(input, output, session) {
   ##############
   
   
-  # for plot zooming
+  # for plot zooming - Main
   
   range <- reactiveValues(y = NULL)
   
@@ -440,6 +440,22 @@ shinyServer(function(input, output, session) {
             theme(panel.background = element_rect(fill =NA),
                   panel.grid.major = element_line(colour = '#F6F6F6'),
                   axis.line = element_line(colour = '#BDBDBD'))
+          
+          if (input$monthlySummaries == T){
+            
+            plot_util_YM <- plot_util_YM +
+              geom_line(aes(x = factor(YEARMONTH), group = input$grouping), 
+                        fun.y = mean, stat = 'summary', color = 'red', alpha = 0.4, size =2) +
+              geom_line(aes(x = factor(YEARMONTH), group = input$grouping), 
+                        fun.y = median, stat = 'summary', color = 'blue', alpha = 0.4, size =2)
+              
+          }
+          
+
+            
+            
+            
+          
         
         } else {
          
@@ -470,6 +486,46 @@ shinyServer(function(input, output, session) {
                   theme(panel.background = element_rect(fill =NA),
                         panel.grid.major = element_line(colour = '#F6F6F6'),
                         axis.line = element_line(colour = '#BDBDBD')) 
+                
+              } else {
+                
+                if (input$mainPlotVis == 'Point chart - mean, user count'){
+                
+                  plot_util_YM <- ggplot(data = NULL) +
+                    geom_point(aes_string(x = 'YEARMONTH', y = 'm_util_bill', size = 'count', color = input$grouping),
+                               alpha = 0.4,
+                               position = position_dodge(width = 0.75),
+                               data = df %>% 
+                                 group_by_(.dots = lapply(c('YEARMONTH', input$grouping), as.symbol)) %>%
+                                 summarise(count = n(), m_util_bill = mean(util_bill)) %>%
+                                 ungroup()) +
+                    scale_size_continuous(range = c(1,20)) +
+                      theme(panel.background = element_rect(fill =NA),
+                            panel.grid.major = element_line(colour = '#F6F6F6'),
+                            axis.line = element_line(colour = '#BDBDBD'))
+                  
+                  if (input$monthlySummaries == T){
+                    
+                    plot_util_YM <- plot_util_YM +
+                        geom_line(aes(x = YEARMONTH, y = util_bill, group = input$grouping),
+                                  data = df,
+                                  fun.y = mean,
+                                  stat = 'summary',
+                                  color = 'red',
+                                  alpha = 0.4,
+                                  size = 2) +
+                        geom_line(aes(x = YEARMONTH, y = util_bill, group = input$grouping),
+                                  data = df,
+                                  fun.y = median,
+                                  stat = 'summary',
+                                  color = 'blue',
+                                  alpha = 0.4,
+                                  size = 2)
+                    
+                  }
+                  
+                  
+                }
                 
               }
               
@@ -555,6 +611,10 @@ shinyServer(function(input, output, session) {
                      stat = 'summary', shape = 4) +
           geom_point(fun.y = quantile, fun.args=list(probs=0.9),
                      stat = 'summary', shape = 4) +
+          geom_hline(yintercept = as.numeric(mean(df$util_bill, na.rm = T)),
+                     color = 'red') +
+          geom_hline(yintercept = as.numeric(median(df$util_bill, na.rm = T)),
+                     color = 'blue') +
           theme(legend.position = 'none',
                 panel.background = element_rect(fill =NA),
                 panel.grid.major = element_line(colour = '#F6F6F6'),
@@ -576,6 +636,10 @@ shinyServer(function(input, output, session) {
 
             plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = df) +
             geom_histogram(alpha = 0.4, position = 'identity', bins = input$bins) + 
+            geom_vline(xintercept = as.numeric(mean(df$util_bill, na.rm = T)),
+                       color = 'red') +
+            geom_vline(xintercept = as.numeric(median(df$util_bill, na.rm = T)),
+                       color = 'blue') +
             theme(legend.position = 'none',
                   panel.background = element_rect(fill =NA),
                   panel.grid.major = element_line(colour = '#F6F6F6'),
@@ -596,6 +660,10 @@ shinyServer(function(input, output, session) {
             
             plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = df) +
               geom_histogram(bins = input$bins, alpha = 0.5) +
+              geom_vline(xintercept = as.numeric(mean(df$util_bill, na.rm = T)),
+                         color = 'red') +
+              geom_vline(xintercept = as.numeric(median(df$util_bill, na.rm = T)),
+                         color = 'blue') +
               theme(legend.position = 'none',
                     panel.background = element_rect(fill =NA),
                     panel.grid.major = element_line(colour = '#F6F6F6'),
@@ -619,6 +687,10 @@ shinyServer(function(input, output, session) {
               plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = df) +
                 geom_histogram(position = 'fill', bins = input$bins, alpha = 0.5) +
                 ylab('%') +
+                geom_vline(xintercept = as.numeric(mean(df$util_bill, na.rm = T)),
+                           color = 'red') +
+                geom_vline(xintercept = as.numeric(median(df$util_bill, na.rm = T)),
+                           color = 'blue') +
                 theme(legend.position = 'none',
                       panel.background = element_rect(fill =NA),
                       panel.grid.major = element_line(colour = '#F6F6F6'),
@@ -657,7 +729,7 @@ shinyServer(function(input, output, session) {
       
       if (input$color_var == 'none'){
         
-        plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs), data = df) +
+        plot_util_rel <- ggplot(aes_string(x = input$util_inputs, y = 'util_bill'), data = df) +
           geom_point(alpha = 1/input$alpha, position = 'jitter') +
           facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T) +
           theme(#aspect.ratio  = 1, - bug pri brushingu
@@ -672,7 +744,7 @@ shinyServer(function(input, output, session) {
         
         if (input$color_var != 'none'){
           
-          plot_util_rel <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs, color = input$color_var), data = df) +
+          plot_util_rel <- ggplot(aes_string(x = input$util_inputs, y = 'util_bill', color = input$color_var), data = df) +
             geom_point(alpha = 1/input$alpha, position = 'jitter') +
             facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T) +
             scale_colour_gradientn(colours=rainbow(5)) +
@@ -717,10 +789,10 @@ shinyServer(function(input, output, session) {
       
       if (input$color_var_select %in% c('none', 'USER_NAME')){
         
-        plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs_selected),
+        plot_selected <- ggplot(aes_string(x = input$util_inputs_selected, y = 'util_bill'),
                                 data = pass_df_selected_brush()) +
-          geom_point(alpha = 1/input$alpha, position = 'jitter') +
-          theme(#legend.position = 'none',
+          geom_point(alpha = 1/input$alpha, position = 'jitter', size = input$psize) +
+          theme(legend.position = 'bottom',
             panel.background = element_rect(fill =NA),
             panel.grid.major = element_line(colour = '#F6F6F6'),
             axis.line = element_line(colour = '#BDBDBD'),
@@ -733,11 +805,11 @@ shinyServer(function(input, output, session) {
         
         if (input$color_var_select != input$grouping){
           
-          plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs_selected, color = input$color_var_select),
+          plot_selected <- ggplot(aes_string(x = input$util_inputs_selected, y = 'util_bill', color = input$color_var_select),
                                   data = pass_df_selected_brush()) +
-            geom_point(alpha = 1/input$alpha, position = 'jitter') +
+            geom_point(alpha = 1/input$alpha, position = 'jitter', size = input$psize) +
             scale_colour_gradientn(colours = rainbow(5)) +
-            theme(#legend.position = 'none',
+            theme(legend.position = 'bottom',
               panel.background = element_rect(fill =NA),
               panel.grid.major = element_line(colour = '#F6F6F6'),
               axis.line = element_line(colour = '#BDBDBD'),
@@ -753,10 +825,10 @@ shinyServer(function(input, output, session) {
           
           if (input$color_var_select == input$grouping){
             
-            plot_selected <- ggplot(aes_string(x = 'util_bill', y = input$util_inputs_selected, color = input$color_var_select),
+            plot_selected <- ggplot(aes_string(x = input$util_inputs_selected, y = 'util_bill', color = input$color_var_select),
                                     data = pass_df_selected_brush()) +
-              geom_point(alpha = 1/input$alpha, position = 'jitter') +
-              theme(#legend.position = 'none',
+              geom_point(alpha = 1/input$alpha, position = 'jitter', size = input$psize) +
+              theme(legend.position = 'bottom',
                 panel.background = element_rect(fill =NA),
                 panel.grid.major = element_line(colour = '#F6F6F6'),
                 axis.line = element_line(colour = '#BDBDBD'),
@@ -807,15 +879,18 @@ shinyServer(function(input, output, session) {
         }
         
       }
-        
-        #plot_selected <- plot_selected + geom_smooth(method = 'lm') 
-        
       
-      
+      if (!is.null(range_sel)){
+
+        plot_selected <- plot_selected + coord_cartesian(xlim = range_sel$x,
+                                                         ylim = range_sel$y)
+
+      }
+        
       if (!is.null(input$selected_table_rows_selected) & input$color_var_select == 'USER_NAME'){
         
         plot_selected <- plot_selected +
-          geom_point(data = pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),], size = 5, aes(color = USER_NAME))
+          geom_point(data = pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),], size = input$psize + 3, aes(color = USER_NAME))
         
         if (input$smooth == 'regression'){
           
@@ -840,6 +915,28 @@ shinyServer(function(input, output, session) {
     }
     
     
+    
+  })
+  
+  # for plot zooming - Selected
+  
+  range_sel <- reactiveValues(x = NULL, y = NULL)
+  
+  observeEvent(input$selected_dblclick, {
+    
+    brush <- input$selected_brush
+    
+    if (!is.null(brush)){
+      
+      range_sel$x <- c(brush$xmin, brush$xmax)
+      range_sel$y <- c(brush$ymin, brush$ymax)
+      
+    } else {
+      
+      range_sel$x <- NULL
+      range_sel$y <- NULL 
+      
+    }
     
   })
   
@@ -892,7 +989,23 @@ shinyServer(function(input, output, session) {
   
   output$test <- renderPrint({
     
-    input$marginal1_brush
+    
+    if (!is.null(input$main_click)){
+      
+      YM_levels <- levels(as.factor(pass_df_util()$YEARMONTH))
+      YM_clicked <- YM_levels[round(input$main_click$x)]
+      
+      unit_levelsYM <- levels(as.factor(pass_df_util()[pass_df_util()$YEARMONTH == YM_clicked, input$grouping][[input$grouping]]))
+      
+      #class(YM_clicked)
+      unit_levelsYM
+      #input$main_click
+      
+    }
+    
+    #name
+    
+    #input$main_click
     #range$y
     #str(input$marginal1_brush)
     #str(input$mainPlot_brush)
@@ -916,7 +1029,15 @@ shinyServer(function(input, output, session) {
 
   })
 
-  
+  output$hovUserYM <- renderTable({
+    
+    if (!is.null(input$selected_hover)){
+    
+      nearPoints(pass_df_selected_brush(), maxpoints = 17, input$selected_hover)[, c('USER_NAME', 'YEARMONTH')]
+      
+    }
+    
+  })
   
   # users in month selected with brush or with doubleclick in Inputs tab
   
@@ -1152,3 +1273,34 @@ shinyServer(function(input, output, session) {
 # MAPA  - datum, utilizacia filter -> zakl. data do leafletu na vykreslenie prazdnych polygonov ##### NETREBA???
 #       - unit filter do observera -> leafletproxy na prekreslovanie
 #       - 
+
+# prezentacia
+
+# 1. ci chapu pojmy
+# 2. oboznamenie - najprv R a Shiny, potom apka
+# 3. R - programovaci jayzyk zamerany na pracu s datami, opensource, rozsiritelny pomocou kniznic/packegov, RStudio - ukazat aj trocha z kodu
+#       - najst nejake cisla porovnania s inymi analytickymi toolmi, cisla zo stackoverflow, podpora pre najvacsie cloudove/analyticke platformy
+#       - t.j. - spracovanie dat z roznych zdrojov
+#               - manipulacia s datami - vektory, matice, dataframy...principy, kniznice (sqldf, reshape, dplyr, tidyr
+#               - analyza (kopec uz vytvorenych funkcii a kopec dalsich moznych kniznic) a vizualizacia dat (uz vytvorene base funkcie
+#                       plus ggplot2 (strucne opisat), ggvis, plotly, dygraph, D3, google charts, rCharts, geograficke data leaflet, tmap a dalsie,
+#                       interaktivita, animacie
+#               - modelovanie dat - vsemozne statisticke algoritmy, strojoveho ucenia, clustrovanie, segmentacne, asociacne,
+#                                       - modelovanie streamovanych dat (zive?), sluzby zez api
+#               - dalsie...
+# 4. shiny - kniznica/web application framework pre R (tj. v R spravis vsetku pracu s datami (manipulovanie, modelovanie, analyzy...) a v Shiny riesis funkcionalitu)
+#           - koncept reaktivity
+#           - moznost interaktivity podla pouzitej kniznice (grafy, tabulky)
+# 5. moja apka - popisat UIcko - panel na prompty, ktore sa dynamicky menia a taby
+#               - popisat pri kazdom vystupe ake informacie ukazuje a moznosti zlepsenia (napr. pri boxplote violin plot, zobrazit cislo s nejakou inou premennou, 
+#                       alebo klik na nejaku katogoriu a zobrazenie nejakeho ineho grafu ci tabulky)
+#               - popisat cca ako to funguje
+# 6. co dalsie by sa malo dat este v shiny spravit, priklady, javascript css html v kode
+# 7. R + Shiny ako tool na reporting?  - dashboardy, shiny server a shinyapps.io, 
+#                                     - parametrizovane a interaktivne HTML (PDF, WORD,...) dokumenty a prezentacie (slidy, slidify, ioslides)
+#                                         vytvorene v RMarkdown, automatizacia?, encoding dat (RData) do html, HTML report
+#                                         v Shiny appke/dashboarde alebo samostatne (mesacna, kentova, utilizacia od vila, personalizovany
+#                                         report s roznymi metrikami a ich spracovanim
+#                                     - nutne preskumat nevyhnutnu funkcionalitu
+#                                     - crosstaby jednoducho?
+# 8. Strucne zhrnut pozitiva a negativa a veci co este treba preskumat

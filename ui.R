@@ -59,9 +59,19 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
     
                     selectInput(inputId = 'mainPlotVis',
                                 label = 'Main plot',
-                                choices = c('Boxplots', 'Stacked barchart with counts', 'Stacked relative barchart', 'Dodged barchart'),
+                                choices = c('Boxplots', 
+                                            'Point chart - mean, user count',
+                                            'Stacked barchart with counts', 
+                                            'Stacked relative barchart', 
+                                            'Dodged barchart'),
                                 multiple = F,
                                 selected = 'Boxplots'
+                    ),
+                    
+                    conditionalPanel(condition = "input.mainPlotVis == 'Boxplots' || input.mainPlotVis == 'Point chart - mean, user count'",
+                                     checkboxInput(inputId = 'monthlySummaries',
+                                                   label = 'Include monthly mean and median',
+                                                    value = F)
                     ),
                     
                     selectInput(inputId = 'marginalVis',
@@ -86,7 +96,7 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                  choices = c('Tracked billable' = 't_bill',
                                              'Expected billable' = 'exp_bill',
                                              'Tracked investment' = 't_inv'),
-                                 label = 'Y variable',
+                                 label = 'X variable',
                                  multiple = F,
                                  selected = 't_bill')
     ),
@@ -104,7 +114,15 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
     
     conditionalPanel(condition = "input.tabs_1 == 'Selected'",
                      
-                     uiOutput('util_selected_color')
+                     uiOutput('util_selected_color'),
+                     
+                     sliderInput(inputId = 'psize',
+                                 label = 'Point size',
+                                 min = 1,
+                                 max = 5,
+                                 value = 2,
+                                 step = 0.5,
+                                 ticks = T)
     ),
     
     conditionalPanel(condition = "input.tabs_1 == 'Inputs' || input.tabs_1 == 'Selected'",
@@ -133,7 +151,8 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
     
       tabPanel('Main',
                
-              fluidRow(column(8, plotOutput("utilization_YM")),
+              fluidRow(column(8, plotOutput("utilization_YM",
+                                            click = clickOpts('main_click'))),
                        column(2, plotOutput('Utilization_marginal1',
                             brush = brushOpts(id = 'marginal1_brush', 
                                               direction = 'y',
@@ -168,7 +187,25 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
       
       tabPanel('Selected', 
                
-               plotOutput('selected_chart'),
+               fluidRow(
+                 column(9,
+                   plotOutput('selected_chart', height = '600px',
+                              brush = brushOpts(id = 'selected_brush',
+                                                direction = 'xy',
+                                                clip = T),
+                              dblclick = 'selected_dblclick',
+                              hover = hoverOpts('selected_hover',
+                                                delay = 500,
+                                                delayType = 'debounce',
+                                                nullOutside = F))
+                   ),
+                 
+                 column(3,
+                    tableOutput('hovUserYM')
+                  )
+               ),
+               
+               tableOutput('test_hov'),
                DT:: dataTableOutput('selected_table'),
                verbatimTextOutput('test1')
                

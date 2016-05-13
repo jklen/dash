@@ -114,4 +114,8 @@ lnd[SpatialPoints(coords = matrix(c(19.50766, 48.72671), ncol = 2), proj4string 
 # http://stackoverflow.com/questions/23224142/converting-data-frame-to-xts-order-by-requires-an-appropriate-time-based-object xts akceptuje Date, timeDate, POSIXct
 # http://stackoverflow.com/questions/29716868/r-shiny-how-to-get-an-reactive-data-frame-updated-each-time-pressing-an-actionb
 # http://stackoverflow.com/questions/29065871/interactive-map-with-leafletr-variable-point-size legenda na point size - trocha komplikovane
+# http://stackoverflow.com/questions/20251119/increase-the-size-of-variable-size-points-in-ggplot2-scatter-plot
+# http://stackoverflow.com/questions/20254084/plot-normal-left-and-right-skewed-distribution-in-r
+# http://r.789695.n4.nabble.com/Bimodal-distribution-td1567430.html create bimodal distribution
+# http://stackoverflow.com/questions/9109156/ggplot-combining-two-plots-from-different-data-frames - different layers, different data
 #
