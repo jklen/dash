@@ -997,18 +997,18 @@ shinyServer(function(input, output, session) {
       
       unit_levelsYM <- levels(as.factor(pass_df_util()[pass_df_util()$YEARMONTH == YM_clicked, input$grouping][[input$grouping]]))
       
-      #class(YM_clicked)
-      unit_levelsYM
-      #input$main_click
+      YM_lower_bound <- round(input$main_click$x) - (0.75/2)
+      YM_upper_bound <- round(input$main_click$x) + (0.75/2)
+      YM_intervals <- seq(from = YM_lower_bound, to = YM_upper_bound, by = 0.75/length(unit_levelsYM))
+
+      
+      clicked_YM_interval <- cut(input$main_click$x, YM_intervals, include.lowest = T)
+      unit_YM_position <- match(as.character(clicked_YM_interval), as.character(levels(clicked_YM_interval)))
+      
+      unit_levelsYM[unit_YM_position]
       
     }
     
-    #name
-    
-    #input$main_click
-    #range$y
-    #str(input$marginal1_brush)
-    #str(input$mainPlot_brush)
     
   })
   
