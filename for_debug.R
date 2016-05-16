@@ -21,8 +21,8 @@ loadData <- function() {
     select(ID, NAME) %>%
     rename(ORG_ID = ID, ORG_NAME = NAME)
   geo <- geo %>%
-    select(ID, NAME) %>%
-    rename(GEO_ID = ID, GEO_NAME = NAME)
+    select(GEO_ID, GEO_NAME) #%>%
+    #rename(GEO_ID = ID, GEO_NAME = NAME)
   countries <- countries %>%
     select(ID, NAME) %>%
     rename(COUNTRY_ID = ID, COUNTRY_NAME = NAME)

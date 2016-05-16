@@ -18,6 +18,22 @@ library(lazyeval)
 
 load('.Rdata')
 
+summaryfunction <- function (x){
+  if( is.numeric(x)!=TRUE) {stop("Supplied X is not numeric")}
+  mysummary = data.frame(
+    "Min." =as.numeric( min(x, na.rm = T)),
+    "1st Qu." = quantile(x, na.rm = T)[2],
+    "Median" = median(x, na.rm = T),
+    "Mean" = mean(x, na.rm = T),
+    "3rd Qu." = quantile(x, na.rm = T)[4],
+    "Max." = max(x, na.rm = T),
+    row.names=""
+    
+  )
+  names(mysummary) = c("Min.","1st Qu.","Median","Mean","3rd Qu.","Max.")
+  return( mysummary )
+}
+
 shinyServer(function(input, output, session) {
   
   # rendering checkbox group based on reactive vector of units
@@ -227,8 +243,8 @@ shinyServer(function(input, output, session) {
   
   observeEvent(input$units, {
     
-    cat(file=stderr(), "-------------UNITS---------", input$units)
-    cat(file=stderr(), "-------------GROUPING---------", input$grouping)
+    # cat(file=stderr(), "-------------UNITS---------", input$units)
+    # cat(file=stderr(), "-------------GROUPING---------", input$grouping)
     
     
     df_util_reac <- pass_df()
@@ -370,7 +386,7 @@ shinyServer(function(input, output, session) {
                                                     probs = 0.9, na.rm = T)),
                    linetype = 3) +
         theme(panel.background = element_rect(fill =NA),
-              panel.grid.major = element_line(colour = '#F6F6F6'),
+              panel.grid.major = element_line(colour = '#e5e5e5'),
               axis.line = element_line(colour = '#BDBDBD'),
               axis.title.y = element_blank())
       
@@ -438,7 +454,7 @@ shinyServer(function(input, output, session) {
                        fun.y = quantile, fun.args=list(probs=0.9),
                       stat = 'summary', shape = 4) +
             theme(panel.background = element_rect(fill =NA),
-                  panel.grid.major = element_line(colour = '#F6F6F6'),
+                  panel.grid.major = element_line(colour = '#e5e5e5'),
                   axis.line = element_line(colour = '#BDBDBD'))
           
           if (input$monthlySummaries == T){
@@ -464,7 +480,7 @@ shinyServer(function(input, output, session) {
             plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = df) +
               geom_bar(aes(x = factor(YEARMONTH)), position = 'stack', alpha = 0.5) +
               theme(panel.background = element_rect(fill =NA),
-                    panel.grid.major = element_line(colour = '#F6F6F6'),
+                    panel.grid.major = element_line(colour = '#e5e5e5'),
                     axis.line = element_line(colour = '#BDBDBD'))
             
           } else {
@@ -474,7 +490,7 @@ shinyServer(function(input, output, session) {
               plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = df) +
                 geom_bar(aes(x = factor(YEARMONTH)), position = 'fill', alpha = 0.5) +
                 theme(panel.background = element_rect(fill =NA),
-                      panel.grid.major = element_line(colour = '#F6F6F6'),
+                      panel.grid.major = element_line(colour = '#e5e5e5'),
                       axis.line = element_line(colour = '#BDBDBD'))
               
             } else {
@@ -484,7 +500,7 @@ shinyServer(function(input, output, session) {
                 plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = df) +
                   geom_bar(aes(x = factor(YEARMONTH)),position = 'dodge', alpha = 0.5) +
                   theme(panel.background = element_rect(fill =NA),
-                        panel.grid.major = element_line(colour = '#F6F6F6'),
+                        panel.grid.major = element_line(colour = '#e5e5e5'),
                         axis.line = element_line(colour = '#BDBDBD')) 
                 
               } else {
@@ -501,7 +517,7 @@ shinyServer(function(input, output, session) {
                                  ungroup()) +
                     scale_size_continuous(range = c(1,20)) +
                       theme(panel.background = element_rect(fill =NA),
-                            panel.grid.major = element_line(colour = '#F6F6F6'),
+                            panel.grid.major = element_line(colour = '#e5e5e5'),
                             axis.line = element_line(colour = '#BDBDBD'))
                   
                   if (input$monthlySummaries == T){
@@ -617,7 +633,7 @@ shinyServer(function(input, output, session) {
                      color = 'blue') +
           theme(legend.position = 'none',
                 panel.background = element_rect(fill =NA),
-                panel.grid.major = element_line(colour = '#F6F6F6'),
+                panel.grid.major = element_line(colour = '#e5e5e5'),
                 axis.line = element_line(colour = '#BDBDBD'),
                 axis.title.y = element_blank())
         
@@ -642,7 +658,7 @@ shinyServer(function(input, output, session) {
                        color = 'blue') +
             theme(legend.position = 'none',
                   panel.background = element_rect(fill =NA),
-                  panel.grid.major = element_line(colour = '#F6F6F6'),
+                  panel.grid.major = element_line(colour = '#e5e5e5'),
                   axis.line = element_line(colour = '#BDBDBD'),
                   axis.title.y = element_blank())
             
@@ -666,7 +682,7 @@ shinyServer(function(input, output, session) {
                          color = 'blue') +
               theme(legend.position = 'none',
                     panel.background = element_rect(fill =NA),
-                    panel.grid.major = element_line(colour = '#F6F6F6'),
+                    panel.grid.major = element_line(colour = '#e5e5e5'),
                     axis.line = element_line(colour = '#BDBDBD'),
                     axis.title.y = element_blank())
             
@@ -693,7 +709,7 @@ shinyServer(function(input, output, session) {
                            color = 'blue') +
                 theme(legend.position = 'none',
                       panel.background = element_rect(fill =NA),
-                      panel.grid.major = element_line(colour = '#F6F6F6'),
+                      panel.grid.major = element_line(colour = '#e5e5e5'),
                       axis.line = element_line(colour = '#BDBDBD'),
                       axis.title.y = element_blank())
               
@@ -735,7 +751,7 @@ shinyServer(function(input, output, session) {
           theme(#aspect.ratio  = 1, - bug pri brushingu
             legend.position = 'none',
             panel.background = element_rect(fill =NA),
-            panel.grid.major = element_line(colour = '#F6F6F6'),
+            panel.grid.major = element_line(colour = '#e5e5e5'),
             axis.line = element_line(colour = '#BDBDBD'),
             strip.background = element_rect(fill = '#e5e5ff'),
             strip.text = element_text(face = 'bold'))
@@ -751,7 +767,7 @@ shinyServer(function(input, output, session) {
             theme(#aspect.ratio  = 1, - bug pri brushingu
               #legend.position = 'none',
               panel.background = element_rect(fill =NA),
-              panel.grid.major = element_line(colour = '#F6F6F6'),
+              panel.grid.major = element_line(colour = '#e5e5e5'),
               axis.line = element_line(colour = '#BDBDBD'),
               strip.background = element_rect(fill = '#e5e5ff'),
               strip.text = element_text(face = 'bold')) 
@@ -794,7 +810,7 @@ shinyServer(function(input, output, session) {
           geom_point(alpha = 1/input$alpha, position = 'jitter', size = input$psize) +
           theme(legend.position = 'bottom',
             panel.background = element_rect(fill =NA),
-            panel.grid.major = element_line(colour = '#F6F6F6'),
+            panel.grid.major = element_line(colour = '#e5e5e5'),
             axis.line = element_line(colour = '#BDBDBD'),
             strip.background = element_rect(fill = '#e5e5ff'),
             strip.text = element_text(face = 'bold'))
@@ -811,7 +827,7 @@ shinyServer(function(input, output, session) {
             scale_colour_gradientn(colours = rainbow(5)) +
             theme(legend.position = 'bottom',
               panel.background = element_rect(fill =NA),
-              panel.grid.major = element_line(colour = '#F6F6F6'),
+              panel.grid.major = element_line(colour = '#e5e5e5'),
               axis.line = element_line(colour = '#BDBDBD'),
               strip.background = element_rect(fill = '#e5e5ff'),
               strip.text = element_text(face = 'bold'))
@@ -830,7 +846,7 @@ shinyServer(function(input, output, session) {
               geom_point(alpha = 1/input$alpha, position = 'jitter', size = input$psize) +
               theme(legend.position = 'bottom',
                 panel.background = element_rect(fill =NA),
-                panel.grid.major = element_line(colour = '#F6F6F6'),
+                panel.grid.major = element_line(colour = '#e5e5e5'),
                 axis.line = element_line(colour = '#BDBDBD'),
                 strip.background = element_rect(fill = '#e5e5ff'),
                 strip.text = element_text(face = 'bold'))
@@ -949,67 +965,112 @@ shinyServer(function(input, output, session) {
     
   })
   
-  output$main_summary <- renderPrint ({
-    
-    df <- dfToPlot$df
-    
-    if (!is.null(input$units)){
-      
-      by(data = df$util_bill, INDICES = df[, c(input$grouping, 'YEARMONTH')], summary)
-      
-    }
-    
-    
-    
-  })
+  # output$main_summary <- renderPrint ({
+  #   
+  #   df <- dfToPlot$df
+  #   
+  #   if (!is.null(input$units)){
+  #     
+  #     by(data = df$util_bill, INDICES = df[, c(input$grouping, 'YEARMONTH')], summary)
+  #     
+  #   }
+  #   
+  #   
+  #   
+  # })
   
-  output$marginal_summary <- renderPrint({
-    
-    df <- dfToPlot$df
-    
-    if (!is.null(input$units)){
-      
-      summary(df$util_bill)
-      
-    }
-    
-  })
+  # output$marginal_summary <- renderPrint({
+  #   
+  #   df <- dfToPlot$df
+  #   
+  #   if (!is.null(input$units)){
+  #     
+  #     summary(df$util_bill)
+  #     
+  #   }
+  #   
+  # })
   
-  output$marginal_summary2 <- renderPrint({
-    
-    df <- dfToPlot$df
-    
-    if (!is.null(input$units)){
-      
-      by(data = df$util_bill, INDICES = df[, input$grouping], summary)
+  # output$marginal_summary2 <- renderPrint({
+  #   
+  #   df <- dfToPlot$df
+  #   
+  #   if (!is.null(input$units)){
+  #     
+  #     by(data = df$util_bill, INDICES = df[, input$grouping], summary)
+  # 
+  #   }
+  #   
+  # })
+  
+  plots_clickDF <- reactiveValues(summary2 = NULL, summary3 = NULL, unit = NULL, YM = NULL)
 
+  observeEvent(input$main_click, {
+    
+    df <- dfToPlot$df
+    
+    YM_levels <- levels(as.factor(df$YEARMONTH))
+    YM_clicked <- YM_levels[round(input$main_click$x)]
+    
+    unit_levelsYM <- levels(as.factor(df[df$YEARMONTH == YM_clicked, input$grouping][[input$grouping]]))
+    
+    YM_lower_bound <- round(input$main_click$x) - (0.75/2)
+    YM_upper_bound <- round(input$main_click$x) + (0.75/2)
+    YM_intervals <- seq(from = YM_lower_bound, to = YM_upper_bound, by = 0.75/length(unit_levelsYM))
+    
+    
+    clicked_YM_interval <- cut(input$main_click$x, YM_intervals, include.lowest = T)
+    unit_YM_position <- match(as.character(clicked_YM_interval), as.character(levels(clicked_YM_interval)))
+    
+    clicked_unit <- unit_levelsYM[unit_YM_position]
+    
+      plots_clickDF$summary2 <- df[df['YEARMONTH'] == YM_clicked & df[input$grouping] == clicked_unit,  'util_bill']
+      plots_clickDF$summary3 <- df[df['YEARMONTH'] == YM_clicked,  'util_bill']
+      plots_clickDF$unit <- clicked_unit
+      plots_clickDF$YM <- YM_clicked
+      
+    
+    
+  })
+  
+  observeEvent(input$marginal2_click, {
+    
+    df <- dfToPlot$df
+    
+    unit_levels <- levels(as.factor(df[input$grouping][[input$grouping]]))
+    unit_clicked <- unit_levels[round(input$marginal2_click$x)]
+    
+    plots_clickDF$summary2 <- df[df[input$grouping] == unit_clicked,  'util_bill']
+    plots_clickDF$unit <- unit_clicked
+    plots_clickDF$summary3 <- df
+    plots_clickDF$YM <- 'All months'
+    
+  })
+  
+  
+  output$summary2 <- renderTable({
+    
+    req(plots_clickDF$summary2)
+    
+    if (!is.na(plots_clickDF$summary2)){
+      summary2 <- summaryfunction(plots_clickDF$summary2$util_bill) # summaryfunction converts summary to dataframe
+      summary2[input$grouping] <- plots_clickDF$unit
+      
+      summary2
+    
     }
     
   })
   
-  output$test <- renderPrint({
+  output$summary3 <- renderTable({
     
+    req(plots_clickDF$summary3)
     
-    if (!is.null(input$main_click)){
-      
-      YM_levels <- levels(as.factor(pass_df_util()$YEARMONTH))
-      YM_clicked <- YM_levels[round(input$main_click$x)]
-      
-      unit_levelsYM <- levels(as.factor(pass_df_util()[pass_df_util()$YEARMONTH == YM_clicked, input$grouping][[input$grouping]]))
-      
-      YM_lower_bound <- round(input$main_click$x) - (0.75/2)
-      YM_upper_bound <- round(input$main_click$x) + (0.75/2)
-      YM_intervals <- seq(from = YM_lower_bound, to = YM_upper_bound, by = 0.75/length(unit_levelsYM))
+    summary3 <- summaryfunction(plots_clickDF$summary3$util_bill)
+    summary3['YEARMONTH'] <- plots_clickDF$YM
+    
+    summary3
 
-      
-      clicked_YM_interval <- cut(input$main_click$x, YM_intervals, include.lowest = T)
-      unit_YM_position <- match(as.character(clicked_YM_interval), as.character(levels(clicked_YM_interval)))
-      
-      unit_levelsYM[unit_YM_position]
-      
-    }
-    
-    
   })
   
   output$test1 <- renderPrint({

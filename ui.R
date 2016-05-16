@@ -120,7 +120,7 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                  label = 'Point size',
                                  min = 1,
                                  max = 5,
-                                 value = 2,
+                                 value = 3,
                                  step = 0.5,
                                  ticks = T)
     ),
@@ -158,13 +158,15 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                               direction = 'y',
                                               resetOnNew = T),
                             dblclick = 'marginal1_dblclick')),
-                       column(2, plotOutput('Utilization_marginal2'))
+                       column(2, plotOutput('Utilization_marginal2',
+                                            click = clickOpts('marginal2_click')))
               ),
 
               fluidRow(
                 verbatimTextOutput('test'),
-                column(8, verbatimTextOutput('main_summary')),
-                column(4, verbatimTextOutput('marginal_summary'), verbatimTextOutput('marginal_summary2')),
+                column(7, verbatimTextOutput('summary1')),
+                column(5, tableOutput('summary2'),
+                       tableOutput('summary3')),
                 dataTableOutput('utilization_users')
                 
               )
@@ -192,10 +194,10 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                    plotOutput('selected_chart', height = '600px',
                               brush = brushOpts(id = 'selected_brush',
                                                 direction = 'xy',
-                                                clip = T),
+                                                clip = T, resetOnNew = T),
                               dblclick = 'selected_dblclick',
                               hover = hoverOpts('selected_hover',
-                                                delay = 500,
+                                                delay = 700,
                                                 delayType = 'debounce',
                                                 nullOutside = F))
                    ),
