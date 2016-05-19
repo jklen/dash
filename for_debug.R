@@ -118,4 +118,7 @@ lnd[SpatialPoints(coords = matrix(c(19.50766, 48.72671), ncol = 2), proj4string 
 # http://stackoverflow.com/questions/20254084/plot-normal-left-and-right-skewed-distribution-in-r
 # http://r.789695.n4.nabble.com/Bimodal-distribution-td1567430.html create bimodal distribution
 # http://stackoverflow.com/questions/9109156/ggplot-combining-two-plots-from-different-data-frames - different layers, different data
-#
+# http://www.r-bloggers.com/r-using-rcolorbrewer-to-colour-your-figures-in-r/
+# http://stackoverflow.com/questions/7466023/how-to-give-color-to-each-class-in-scatter-plot-in-r - colors, last answer
+# http://bioinfo.umassmed.edu/bootstrappers/bootstrappers-courses/courses/rCourse/resources/helpfulGuides/Rcolorstyle.pdf - guide to using colors
+# http://research.stowers-institute.org/efg/Report/UsingColorInR.pdf - colors in R basics presentation

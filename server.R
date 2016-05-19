@@ -13,6 +13,9 @@ library(leaflet)
 library(rgdal)
 library(rgeos)
 library(lazyeval)
+library(threejs)
+library(RColorBrewer)
+library(colorspace)
 
 # data load
 
@@ -66,6 +69,8 @@ shinyServer(function(input, output, session) {
     
   })
   
+  # rendering listbox of possible color variables in Selected tab
+  
   output$util_selected_color <- renderUI({
     
     color_var_list_select <- pass_color_var_selected()
@@ -79,6 +84,8 @@ shinyServer(function(input, output, session) {
     )
     
   })
+  
+  # rendering listbox of possible X variables in Selected tab
   
   output$util_input_selected <- renderUI({
     
@@ -123,7 +130,7 @@ shinyServer(function(input, output, session) {
                              'Tracked investment' = 't_inv',
                              switch(input$grouping, GEO_NAME = c('Geo' = 'GEO_NAME'),
                                     ORG_NAME = c('Organization' = 'ORG_NAME'),
-                                    DPT_NAME = c('Department' = 'DPT_NAME')),
+                                    DEPT_NAME = c('Department' = 'DEPT_NAME')),
                              'User' = 'USER_NAME',
                              'None' = 'none')
     
@@ -160,6 +167,61 @@ shinyServer(function(input, output, session) {
     
   })
   
+
+  output$three_Y <- renderUI({
+    
+    vars <- c('Tracked billable' = 't_bill',
+               'Expected billable' = 'exp_bill',
+               'Tracked investment' = 't_inv')
+    
+    vars <- vars[vars != input$three_x_var]
+    
+    selectInput(inputId = 'three_y_var',
+                label = 'Y variable',
+                choices = vars,
+                selected = 't_inv',
+                multiple = F,
+                width = '200px')
+    
+  })
+  
+  output$three_color <- renderUI({
+    
+    vars <- c('Tracked billable' = 't_bill',
+              'Expected billable' = 'exp_bill',
+              'Tracked investment' = 't_inv',
+              switch(input$grouping, GEO_NAME = c('Geo' = 'GEO_NAME'),
+                     ORG_NAME = c('Organization' = 'ORG_NAME'),
+                     DEPT_NAME = c('Department' = 'DEPT_NAME')))
+    
+    vars <- vars[!(vars %in% c(input$three_x_var, input$three_y_var))]
+    
+    selectInput(inputId = 'three_color_var',
+                label = 'Color variable',
+                choices = c(vars, 'None' = 'none'),
+                selected = 'none',
+                multiple = F,
+                width = '200px')
+    
+  })
+  
+  output$three_size <- renderUI({
+    
+    vars <- c('Tracked billable' = 't_bill',
+              'Expected billable' = 'exp_bill',
+              'Tracked investment' = 't_inv')
+    
+    vars <- vars[!(vars %in% c(input$three_x_var, input$three_y_var, input$three_color_var))]
+    
+    selectInput(inputId = 'three_size_var',
+                label = 'Point size variable',
+                choices = c(vars, 'None' = 'none'),
+                selected = 'none',
+                multiple = F,
+                width = '200px')
+    
+  })
+  
   # creating reactive dataframe based on date and value (units in prompt updated)
   
   pass_df <- reactive({
@@ -173,78 +235,12 @@ shinyServer(function(input, output, session) {
     
   })
   
-  # creating reactive dataframe based on selected units
-  
-  pass_df_util <- reactive({
-   
-    df_util_reac <- pass_df()
-    
-    if(!is.null(input$units)){
-      
-      if (input$grouping == 'GEO_NAME'){
-
-        df_util_reac <- df_util_reac[df_util_reac$GEO_NAME %in% input$units,]
-
-      } else {
-        
-        if (input$grouping == 'ORG_NAME'){
-          
-          df_util_reac <- df_util_reac[df_util_reac$ORG_NAME %in% input$units,]
-
-        } else {
-          
-          if (input$grouping == 'DEPT_NAME'){
-            
-            df_util_reac <- df_util_reac[df_util_reac$DEPT_NAME %in% input$units,]
-            
-          } else {
-            
-            if (input$grouping == 'USER_NAME'){
-              
-              df_util_reac <- df_util_reac[df_util_reac$USER_NAME %in% input$units,]
-              
-            }
-            
-          }
-          
-        }
-        
-      }
-      
-    } else {
-      
-      df_util_reac <- NULL 
-      
-    }
-    
-    # group reactive dataframe based on selected grouping
-    
-  
-    groups_toPlot <- c(input$grouping, 'YEARMONTH', 'USER_NAME', 'COUNTRY_NAME') 
-      
-    if (!is.null(df_util_reac)){
-
-    df_util_reac <- df_util_reac %>% 
-      group_by_(.dots = lapply(groups_toPlot, as.symbol)) %>%
-      summarise(t_bill = sum(t_bill), 
-                t_inv = sum(t_inv), 
-                exp_bill = sum(exp_bill)) %>%
-      mutate(util_bill = (t_bill + t_inv)/exp_bill) %>%
-      ungroup()
-    }
-    
-    df_util_reac
-    
-  })
-  
-  ############
-  
   dfToPlot <- reactiveValues(df = NULL)
   
   observeEvent(input$units, {
     
-    # cat(file=stderr(), "-------------UNITS---------", input$units)
-    # cat(file=stderr(), "-------------GROUPING---------", input$grouping)
+     #cat(file=stderr(), "-------------dfUNITS---------", input$units)
+     #cat(file=stderr(), "-------------dfGROUPING---------", input$grouping)
     
     
     df_util_reac <- pass_df()
@@ -253,7 +249,7 @@ shinyServer(function(input, output, session) {
         
         df_util_reac <- df_util_reac[df_util_reac$GEO_NAME %in% input$units,]
         
-        cat(file=stderr(), "-------------DF---------", unique(dfToPlot$df$GEO_NAME))
+        #cat(file=stderr(), "-------------DF---------", unique(dfToPlot$df$GEO_NAME))
         
       } else {
         
@@ -364,7 +360,7 @@ shinyServer(function(input, output, session) {
     
     if (!is.null(dfToPlot$df) & !is.null(input$units)){
     
-      cat(file=stderr(), "-------------PLOTDF---------", unique(df$GEO_NAME))
+      #cat(file=stderr(), "-------------PLOTDF---------", unique(df$GEO_NAME))
       
       plot_util_marg1 <- ggplot(aes(x = util_bill), data = df) +
         geom_histogram(fill = '#F79420', color = 'black', bins = input$bins, alpha = 0.5) +
@@ -426,124 +422,142 @@ shinyServer(function(input, output, session) {
     }
     
   })
+  
+  # for main plot in Main tab - otherwise error when changing grouping, same as with leaflet (CDS_ <- GEO_NAME)
+  
+  gr <- reactiveValues(x = NULL)
+  
+  observeEvent(input$units, {
+    
+    if(!is.null(input$units)){
+      
+      gr$x <- input$grouping
+      
+    } else {
+      
+      gr$x <- NULL
+      
+    }
+    
+  })
 
 
   # plot to output
   
   output$utilization_YM <- renderPlot({
     
-    df <- dfToPlot$df
+    req(gr$x, input$units, dfToPlot$df)
     
-    if (!is.null(input$units)){
+    df <- dfToPlot$df
+    g <- gr$x
+
+    #cat(file=stderr(), "-------------UNITS---------", input$units)
+    #cat(file=stderr(), "-------------GROUPING---------", input$grouping)
+    
+    
+    
+    if (input$mainPlotVis == 'Boxplots'){
+
+      plot_util_YM <- ggplot(aes_string(y = 'util_bill', fill = g), data = df) + 
+        geom_boxplot(aes(x = factor(YEARMONTH)), alpha = 0.5) +
+        geom_point(aes(x = factor(YEARMONTH)), 
+                   position=position_dodge(width=0.75), 
+                   fun.y = mean, stat = 'summary', shape = 1) +
+        geom_point(aes(x = factor(YEARMONTH)), 
+                   position=position_dodge(width=0.75), 
+                   fun.y = quantile, fun.args=list(probs=0.1),
+                  stat = 'summary', shape = 4) +
+        geom_point(aes(x = factor(YEARMONTH)), 
+                   position=position_dodge(width=0.75), 
+                   fun.y = quantile, fun.args=list(probs=0.9),
+                  stat = 'summary', shape = 4) +
+        theme(panel.background = element_rect(fill =NA),
+              panel.grid.major = element_line(colour = '#e5e5e5'),
+              axis.line = element_line(colour = '#BDBDBD'))
       
-      if (input$grouping != 'USER_NAME'){
+      if (input$monthlySummaries == T){
         
-        if (input$mainPlotVis == 'Boxplots'){
+        plot_util_YM <- plot_util_YM +
+          geom_line(aes(x = factor(YEARMONTH), group = g), 
+                    fun.y = mean, stat = 'summary', color = 'red', alpha = 0.4, size =2) +
+          geom_line(aes(x = factor(YEARMONTH), group = g), 
+                    fun.y = median, stat = 'summary', color = 'blue', alpha = 0.4, size =2)
+          
+      }
       
-          plot_util_YM <- ggplot(aes_string(y = 'util_bill', fill = input$grouping), data = df) + 
-            geom_boxplot(aes(x = factor(YEARMONTH)), alpha = 0.5) +
-            geom_point(aes(x = factor(YEARMONTH)), 
-                       position=position_dodge(width=0.75), 
-                       fun.y = mean, stat = 'summary', shape = 1) +
-            geom_point(aes(x = factor(YEARMONTH)), 
-                       position=position_dodge(width=0.75), 
-                       fun.y = quantile, fun.args=list(probs=0.1),
-                      stat = 'summary', shape = 4) +
-            geom_point(aes(x = factor(YEARMONTH)), 
-                       position=position_dodge(width=0.75), 
-                       fun.y = quantile, fun.args=list(probs=0.9),
-                      stat = 'summary', shape = 4) +
+  
+        
+        
+        
+      
+    
+    } else {
+     
+      if (input$mainPlotVis == 'Stacked barchart with counts') {
+        
+        plot_util_YM <- ggplot(aes_string(fill = g), data = df) +
+          geom_bar(aes(x = factor(YEARMONTH)), position = 'stack', alpha = 0.5) +
+          theme(panel.background = element_rect(fill =NA),
+                panel.grid.major = element_line(colour = '#e5e5e5'),
+                axis.line = element_line(colour = '#BDBDBD'))
+        
+      } else {
+        
+        if (input$mainPlotVis == 'Stacked relative barchart'){
+          
+          plot_util_YM <- ggplot(aes_string(fill = g), data = df) +
+            geom_bar(aes(x = factor(YEARMONTH)), position = 'fill', alpha = 0.5) +
             theme(panel.background = element_rect(fill =NA),
                   panel.grid.major = element_line(colour = '#e5e5e5'),
                   axis.line = element_line(colour = '#BDBDBD'))
           
-          if (input$monthlySummaries == T){
-            
-            plot_util_YM <- plot_util_YM +
-              geom_line(aes(x = factor(YEARMONTH), group = input$grouping), 
-                        fun.y = mean, stat = 'summary', color = 'red', alpha = 0.4, size =2) +
-              geom_line(aes(x = factor(YEARMONTH), group = input$grouping), 
-                        fun.y = median, stat = 'summary', color = 'blue', alpha = 0.4, size =2)
-              
-          }
-          
-
-            
-            
-            
-          
-        
         } else {
-         
-          if (input$mainPlotVis == 'Stacked barchart with counts') {
+          
+          if (input$mainPlotVis == 'Dodged barchart'){
             
-            plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = df) +
-              geom_bar(aes(x = factor(YEARMONTH)), position = 'stack', alpha = 0.5) +
+            plot_util_YM <- ggplot(aes_string(fill = g), data = df) +
+              geom_bar(aes(x = factor(YEARMONTH)),position = 'dodge', alpha = 0.5) +
               theme(panel.background = element_rect(fill =NA),
                     panel.grid.major = element_line(colour = '#e5e5e5'),
-                    axis.line = element_line(colour = '#BDBDBD'))
+                    axis.line = element_line(colour = '#BDBDBD')) 
             
           } else {
             
-            if (input$mainPlotVis == 'Stacked relative barchart'){
-              
-              plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = df) +
-                geom_bar(aes(x = factor(YEARMONTH)), position = 'fill', alpha = 0.5) +
-                theme(panel.background = element_rect(fill =NA),
-                      panel.grid.major = element_line(colour = '#e5e5e5'),
-                      axis.line = element_line(colour = '#BDBDBD'))
-              
-            } else {
-              
-              if (input$mainPlotVis == 'Dodged barchart'){
-                
-                plot_util_YM <- ggplot(aes_string(fill = input$grouping), data = df) +
-                  geom_bar(aes(x = factor(YEARMONTH)),position = 'dodge', alpha = 0.5) +
+            if (input$mainPlotVis == 'Point chart - mean, user count'){
+            
+              plot_util_YM <- ggplot(data = NULL) +
+                geom_point(aes_string(x = 'YEARMONTH', y = 'm_util_bill', size = 'count', color = g),
+                           alpha = 0.4,
+                           position = position_dodge(width = 0.75),
+                           data = df %>% 
+                             group_by_(.dots = lapply(c('YEARMONTH', g), as.symbol)) %>%
+                             summarise(count = n(), m_util_bill = mean(util_bill)) %>%
+                             ungroup()) +
+                scale_size_continuous(range = c(1,20)) +
                   theme(panel.background = element_rect(fill =NA),
                         panel.grid.major = element_line(colour = '#e5e5e5'),
-                        axis.line = element_line(colour = '#BDBDBD')) 
+                        axis.line = element_line(colour = '#BDBDBD'))
+              
+              if (input$monthlySummaries == T){
                 
-              } else {
-                
-                if (input$mainPlotVis == 'Point chart - mean, user count'){
-                
-                  plot_util_YM <- ggplot(data = NULL) +
-                    geom_point(aes_string(x = 'YEARMONTH', y = 'm_util_bill', size = 'count', color = input$grouping),
-                               alpha = 0.4,
-                               position = position_dodge(width = 0.75),
-                               data = df %>% 
-                                 group_by_(.dots = lapply(c('YEARMONTH', input$grouping), as.symbol)) %>%
-                                 summarise(count = n(), m_util_bill = mean(util_bill)) %>%
-                                 ungroup()) +
-                    scale_size_continuous(range = c(1,20)) +
-                      theme(panel.background = element_rect(fill =NA),
-                            panel.grid.major = element_line(colour = '#e5e5e5'),
-                            axis.line = element_line(colour = '#BDBDBD'))
-                  
-                  if (input$monthlySummaries == T){
-                    
-                    plot_util_YM <- plot_util_YM +
-                        geom_line(aes(x = YEARMONTH, y = util_bill, group = input$grouping),
-                                  data = df,
-                                  fun.y = mean,
-                                  stat = 'summary',
-                                  color = 'red',
-                                  alpha = 0.4,
-                                  size = 2) +
-                        geom_line(aes(x = YEARMONTH, y = util_bill, group = input$grouping),
-                                  data = df,
-                                  fun.y = median,
-                                  stat = 'summary',
-                                  color = 'blue',
-                                  alpha = 0.4,
-                                  size = 2)
-                    
-                  }
-                  
-                  
-                }
+                plot_util_YM <- plot_util_YM +
+                    geom_line(aes(x = YEARMONTH, y = util_bill, group = g),
+                              data = df,
+                              fun.y = mean,
+                              stat = 'summary',
+                              color = 'red',
+                              alpha = 0.4,
+                              size = 2) +
+                    geom_line(aes(x = YEARMONTH, y = util_bill, group = g),
+                              data = df,
+                              fun.y = median,
+                              stat = 'summary',
+                              color = 'blue',
+                              alpha = 0.4,
+                              size = 2)
                 
               }
+              
               
             }
             
@@ -551,76 +565,40 @@ shinyServer(function(input, output, session) {
           
         }
         
-        
-      } else {
-        
-        
-        
-         # plot_util_YM <- ggplot(aes(x = YEARMONTH, y = util_bill, color = USER_NAME), data = pass_df_util()) +
-         #   geom_line()
-      
       }
-      
-      if (!is.null(range) & input$mainPlotVis == 'Boxplots'){
-        
-        plot_util_YM <- plot_util_YM + coord_cartesian(ylim = range$y)
-        
-      }
-      
-      plot_util_YM
       
     }
+          
+    
+    
+    
+        
+    if (!is.null(range) & input$mainPlotVis == 'Boxplots'){
+      
+      plot_util_YM <- plot_util_YM + coord_cartesian(ylim = range$y)
+      
+    }
+    
+    
+    
+    plot_util_YM
     
   })
   
  
-  output$users_dyg <- renderDygraph({
-    
-    if (!is.null(input$user_list_select)){
-      
-      f <- df_util %>% 
-        filter(USER_NAME %in% input$user_list_select) %>%
-        group_by(USER_NAME, YEARMONTH) %>%
-        summarise(t_bill = sum(t_bill), 
-                  t_inv = sum(t_inv), 
-                  exp_bill = sum(exp_bill)) %>%
-        mutate(util_bill = (t_bill + t_inv)/exp_bill) %>%
-        select(YEARMONTH, USER_NAME, util_bill) %>%
-        ungroup()
-
-      df_toDygraph <- spread(data = f, key = USER_NAME, value = util_bill)
-
-      df_toDygraph_xts <- xts(x = df_toDygraph[, colnames(df_toDygraph) != 'YEARMONTH'], 
-                              order.by = as.POSIXct(strptime(as.character(df_toDygraph$YEARMONTH), format = "%Y-%m-%d")))
-      
-      plot_dyg <- dygraph(df_toDygraph_xts, y = 'User utilization') %>% 
-        dyRangeSelector(height = 20) %>%
-        dyHighlight(highlightSeriesOpts = list(strokeWidth = 3),
-                    highlightCircleSize = 4,
-                    highlightSeriesBackgroundAlpha = 0.2,
-                    hideOnMouseOut = T)
-      
-      
-      
-    } else {
-      
-      plot_dyg <- NULL 
-      
-    }
-    
-    plot_dyg
-    
-  })
   
   output$Utilization_marginal2 <- renderPlot({
     
+    req(gr$x, input$units, dfToPlot$df)
+    
     df <- dfToPlot$df
+    g <- gr$x
     
     if (!is.null(input$units)){
       
       if (input$marginalVis == 'Boxplots'){
         
-        plot_util_marg2 <- ggplot(aes_string(y = 'util_bill', x = input$grouping, fill = input$grouping), data = df) +
+        plot_util_marg2 <- ggplot(aes_string(y = 'util_bill', x = g, fill = g), data = df) +
           geom_boxplot(alpha = 0.5) +
           geom_point(fun.y = mean, stat = 'summary', shape = 1) +
           geom_point(fun.y = quantile, fun.args=list(probs=0.1),
@@ -650,7 +628,7 @@ shinyServer(function(input, output, session) {
         
         if (input$marginalVis == 'Overlaid histograms'){
 
-            plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = df) +
+            plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = g), data = df) +
             geom_histogram(alpha = 0.4, position = 'identity', bins = input$bins) + 
             geom_vline(xintercept = as.numeric(mean(df$util_bill, na.rm = T)),
                        color = 'red') +
@@ -674,7 +652,7 @@ shinyServer(function(input, output, session) {
             
           if (input$marginalVis == 'Stacked histograms'){
             
-            plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = df) +
+            plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = g), data = df) +
               geom_histogram(bins = input$bins, alpha = 0.5) +
               geom_vline(xintercept = as.numeric(mean(df$util_bill, na.rm = T)),
                          color = 'red') +
@@ -700,7 +678,7 @@ shinyServer(function(input, output, session) {
             
             if (input$marginalVis == 'Stacked relative barchart'){
               
-              plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = input$grouping), data = df) +
+              plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = g), data = df) +
                 geom_histogram(position = 'fill', bins = input$bins, alpha = 0.5) +
                 ylab('%') +
                 geom_vline(xintercept = as.numeric(mean(df$util_bill, na.rm = T)),
@@ -735,6 +713,27 @@ shinyServer(function(input, output, session) {
   
   
   # inputs tab plot
+  
+  output$inputs_plot <- renderUI({
+    
+    if (input$input_chartType == '2d'){
+      
+      plotOutput('utilization_inputs',
+                 height = "1200px",
+                 brush = brushOpts(id = 'inputs_brush',
+                                   direction = 'xy',
+                                   clip = T)
+                 
+      )
+      
+    } else {
+      
+      scatterplotThreeOutput('three',
+                             height = '700px')
+      
+    }
+    
+  })
   
   
   output$utilization_inputs <- renderPlot({
@@ -795,7 +794,70 @@ shinyServer(function(input, output, session) {
     
   })
   
-  
+  output$three <- renderScatterplotThree({
+    
+    input$render_three_button
+    
+    df <- isolate(dfToPlot$df)
+    
+    isolate(
+    
+      if (input$grouping == input$three_color_var){
+        
+        three_color = brewer.pal(n = length(unique(df[[input$three_color_var]])), 'Set1')[factor(df[[input$three_color_var]])]
+        #three_color = rainbow_hcl(length(unique(df[[input$three_color_var]])))[factor(df[[input$three_color_var]])]
+        
+        
+      } else {
+        
+        if (input$three_color_var != 'none'){
+          
+          three_color <- colorRampPalette(brewer.pal(name = 'RdYlGn', n = 11))(max(df[[input$three_color_var]]))[df[[input$three_color_var]]]
+          
+        } else {
+          
+          three_color <- NULL
+          
+        }
+        
+      }
+      
+     
+    )
+    
+    isolate(
+      
+      if (input$three_size_var == 'none'){
+        
+        three_size <- input$three_point_size
+        
+      } else {
+        
+        # cut variable for point size to 10 intervals
+        
+        v_cutted <- cut(df[[input$three_size_var]], 
+                        seq(from = min(df[[input$three_size_var]]), 
+                            to = max(df[[input$three_size_var]]), 
+                            length.out = 11))
+        
+        # create vector with point size based on v_cutted
+        
+        three_size <- (seq(from = 0.2, by = 0.1, length.out = 10)[as.numeric(v_cutted)]) * input$three_point_size
+        
+      }
+      
+    )
+    
+    chartToPlot <- isolate(scatterplot3js(x = df[[input$three_x_var]], 
+                                  y = df[[input$three_y_var]], 
+                                  z = df$util_bill, 
+                                  color = three_color, 
+                                  size = three_size,
+                                  renderer = 'canvas'))
+    
+    chartToPlot
+    
+  })
   
   # chart in Selected tab
   
@@ -965,44 +1027,6 @@ shinyServer(function(input, output, session) {
     
   })
   
-  # output$main_summary <- renderPrint ({
-  #   
-  #   df <- dfToPlot$df
-  #   
-  #   if (!is.null(input$units)){
-  #     
-  #     by(data = df$util_bill, INDICES = df[, c(input$grouping, 'YEARMONTH')], summary)
-  #     
-  #   }
-  #   
-  #   
-  #   
-  # })
-  
-  # output$marginal_summary <- renderPrint({
-  #   
-  #   df <- dfToPlot$df
-  #   
-  #   if (!is.null(input$units)){
-  #     
-  #     summary(df$util_bill)
-  #     
-  #   }
-  #   
-  # })
-  
-  # output$marginal_summary2 <- renderPrint({
-  #   
-  #   df <- dfToPlot$df
-  #   
-  #   if (!is.null(input$units)){
-  #     
-  #     by(data = df$util_bill, INDICES = df[, input$grouping], summary)
-  # 
-  #   }
-  #   
-  # })
-  
   plots_clickDF <- reactiveValues(summary2 = NULL, summary3 = NULL, unit = NULL, YM = NULL)
 
   observeEvent(input$main_click, {
@@ -1050,7 +1074,7 @@ shinyServer(function(input, output, session) {
   
   output$summary2 <- renderTable({
     
-    req(plots_clickDF$summary2)
+    req(plots_clickDF$summary2, input$units)
     
     if (!is.na(plots_clickDF$summary2)){
       summary2 <- summaryfunction(plots_clickDF$summary2$util_bill) # summaryfunction converts summary to dataframe
@@ -1064,7 +1088,7 @@ shinyServer(function(input, output, session) {
   
   output$summary3 <- renderTable({
     
-    req(plots_clickDF$summary3)
+    req(plots_clickDF$summary3, input$units)
     
     summary3 <- summaryfunction(plots_clickDF$summary3$util_bill)
     summary3['YEARMONTH'] <- plots_clickDF$YM
@@ -1117,6 +1141,47 @@ shinyServer(function(input, output, session) {
     
     
   })
+  
+  
+  output$users_dyg <- renderDygraph({
+    
+    if (!is.null(input$user_list_select)){
+      
+      f <- df_util %>% 
+        filter(USER_NAME %in% input$user_list_select) %>%
+        group_by(USER_NAME, YEARMONTH) %>%
+        summarise(t_bill = sum(t_bill), 
+                  t_inv = sum(t_inv), 
+                  exp_bill = sum(exp_bill)) %>%
+        mutate(util_bill = (t_bill + t_inv)/exp_bill) %>%
+        select(YEARMONTH, USER_NAME, util_bill) %>%
+        ungroup()
+      
+      df_toDygraph <- spread(data = f, key = USER_NAME, value = util_bill)
+      
+      df_toDygraph_xts <- xts(x = df_toDygraph[, colnames(df_toDygraph) != 'YEARMONTH'], 
+                              order.by = as.POSIXct(strptime(as.character(df_toDygraph$YEARMONTH), format = "%Y-%m-%d")))
+      
+      plot_dyg <- dygraph(df_toDygraph_xts, y = 'User utilization') %>% 
+        dyRangeSelector(height = 20) %>%
+        dyHighlight(highlightSeriesOpts = list(strokeWidth = 3),
+                    highlightCircleSize = 4,
+                    highlightSeriesBackgroundAlpha = 0.2,
+                    hideOnMouseOut = T)
+      
+      
+      
+    } else {
+      
+      plot_dyg <- NULL 
+      
+    }
+    
+    plot_dyg
+    
+  })
+  
+  
   
   # creating reactive polygonsdataframe with user countries of selected units to plot map
   
@@ -1270,7 +1335,7 @@ shinyServer(function(input, output, session) {
   
   output$usersCountry_table <- DT::renderDataTable({
     
-    dat <- pass_df_util()
+    dat <- dfToPlot$df
     dat[dat$COUNTRY_NAME == clickedCountry(),]
     
   })

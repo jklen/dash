@@ -9,6 +9,9 @@ library(lubridate)
 library(rpivotTable)
 library(shinythemes)
 library(leaflet)
+library(threejs)
+library(RColorBrewer)
+library(colorspace)
 
 shinyUI(fluidPage(theme = shinytheme("Spacelab"),
   
@@ -92,6 +95,17 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
     
     conditionalPanel(condition = "input.tabs_1 == 'Inputs'",
                      
+                     selectInput(inputId = 'input_chartType',
+                                 choices = c('Faceted 2d scatter plot' = '2d',
+                                             'Boxplot of binned x variable' = 'box',
+                                             '3d scatter plot with all selected data' = '3d'),
+                                 selected = '2d',
+                                 label = 'Chart type',
+                                 multiple = F)
+    ),
+    
+    conditionalPanel(condition = "input.tabs_1 == 'Inputs' && input.input_chartType == '2d'",
+                   
                      selectInput(inputId = 'util_inputs',
                                  choices = c('Tracked billable' = 't_bill',
                                              'Expected billable' = 'exp_bill',
@@ -101,13 +115,14 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                  selected = 't_bill')
     ),
     
+    
     conditionalPanel(condition = "input.tabs_1 == 'Selected'",
                      
                      uiOutput('util_input_selected')
                      
     ),
     
-    conditionalPanel(condition = "input.tabs_1 == 'Inputs'",
+    conditionalPanel(condition = "input.tabs_1 == 'Inputs' && input.input_chartType == '2d'",
                      
                      uiOutput('util_input_color')
     ),
@@ -125,7 +140,7 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                  ticks = T)
     ),
     
-    conditionalPanel(condition = "input.tabs_1 == 'Inputs' || input.tabs_1 == 'Selected'",
+    conditionalPanel(condition = "(input.tabs_1 == 'Inputs'  && input.input_chartType == '2d') || input.tabs_1 == 'Selected'",
                      
                      sliderInput(inputId = 'alpha',
                                  label = 'Alpha',
@@ -142,6 +157,8 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                  multiple = F,
                                  selected = 'none')
     )
+    
+    
 
   ),
   
@@ -176,13 +193,41 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
       
       tabPanel('Inputs', 
                
-               plotOutput('utilization_inputs',
-                              height = "1200px",
-                              brush = brushOpts(id = 'inputs_brush',
-                                                direction = 'xy',
-                                                clip = T)
-
-                        )
+               uiOutput('inputs_plot'),
+               
+               conditionalPanel(condition = "input.tabs_1 == 'Inputs' && input.input_chartType == '3d'",
+                                
+                                absolutePanel(top = 50,
+                                              right = 20,
+                                              
+                                              selectInput(inputId = 'three_x_var',
+                                                          label = 'X variable',
+                                                          choices = c('Tracked billable' = 't_bill',
+                                                                      'Expected billable' = 'exp_bill',
+                                                                      'Tracked investment' = 't_inv'),
+                                                          selected = 't_bill',
+                                                          selectize = T,
+                                                          multiple = F,
+                                                          width = '200px'),
+                                              
+                                              uiOutput('three_Y'),
+                                              
+                                              uiOutput('three_color'),
+                                              
+                                              uiOutput('three_size'),
+                                              
+                                              sliderInput(inputId = 'three_point_size',
+                                                          label = 'Size of points',
+                                                          min = 0.1,
+                                                          max = 5,
+                                                          step = 0.1,
+                                                          value = 1,
+                                                          width = '200px'),
+                                            
+                                              actionButton(inputId = 'render_three_button',
+                                                           label = 'Render')
+                                )
+               )
                
 
       ),
@@ -221,7 +266,9 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
       
       tabPanel('Users - all',
                
-               dygraphOutput('users_dyg')
+               dygraphOutput('users_dyg'),
+               HTML('threejs')
+               
       ),
       
       tabPanel('Map',
