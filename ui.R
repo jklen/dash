@@ -19,7 +19,7 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
   
   sidebarPanel(width = 3,
                
-    conditionalPanel(condition = "input.tabs_1 != 'Users - all'",
+    conditionalPanel(condition = "input.tabs_1 != 'Users - all' && input.tabs_1 != 'Selected'",
                                 
     
                   dateRangeInput(inputId = 'date_range',
@@ -315,17 +315,11 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                 )
                              ),
                              
-                             checkboxInput(inputId = 'includeCircle',
-                                           label = 'Include circles',
-                                           value = F,
-                                           width = '200px'
-                              ),
+
+                              uiOutput('circleVar'),
                              
-                             conditionalPanel(condition = "input.includeCircle == true",
-                             
-                                uiOutput('circleVar',
-                                        width = '200px'),
-                                
+                             conditionalPanel(condition = "input.circle_variable != 'YM_meanCount'",
+                              
                                 selectInput('circle_statistic',
                                             label = NULL,
                                             choices = c('Mean' = 'mean',
@@ -333,22 +327,22 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                             multiple = F,
                                             selected = 'mean',
                                             selectize = T,
-                                            width = '200px')
-                                
-                                
-                             ),
-                             
-                             conditionalPanel(condition = "input.includeCircle == true & input.circle_statistic == 'percentile'",
+                                            width = '200px'),
+                                  
+                                  
+  
+                                conditionalPanel(condition = "input.circle_statistic == 'percentile'",
+  
+                                                sliderInput('circle_quant',
+                                                            label = NULL,
+                                                            min = 0,
+                                                            max = 1,
+                                                            value = 0.5,
+                                                            step = 0.05,
+                                                            width = '200px'
+                                                )
 
-                                              sliderInput('circle_quant',
-                                                          label = NULL,
-                                                          min = 0,
-                                                          max = 1,
-                                                          value = 0.5,
-                                                          step = 0.05,
-                                                          width = '200px'
-                                              )
-
+                                )
                              )
                              
                              

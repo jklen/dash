@@ -222,6 +222,27 @@ shinyServer(function(input, output, session) {
     
   })
   
+  # circle size in map
+  
+  output$circleVar <- renderUI({
+    
+    vars <- c('Utilization' = 'util_bill',
+              'Tracked billable' = 't_bill',
+              'Expected billable' = 'exp_bill',
+              'Tracked investment' = 't_inv',
+              'Users mean count' = 'YM_meanCount')
+    
+    vars <- vars[vars != input$map_variable]
+    
+    selectInput(inputId = 'circle_variable',
+                label = 'Circle variable',
+                choices = vars,
+                selected = 'YM_meanCount',
+                multiple = F,
+                width = '200px')
+    
+  })
+  
   # creating reactive dataframe based on date and value (units in prompt updated)
   
   pass_df <- reactive({
@@ -236,6 +257,8 @@ shinyServer(function(input, output, session) {
   })
   
   dfToPlot <- reactiveValues(df = NULL)
+  
+
   
   observeEvent(input$units, {
     
@@ -298,58 +321,111 @@ shinyServer(function(input, output, session) {
 
   })
   
-  # reactive dataframe based on brushed in Inputs tab, goes to chart and table in Select tab
+  brushed <- reactiveValues(df = NULL)
   
-  pass_df_selected_brush <- reactive ({
+  observeEvent(input$inputs_brush, {
+    
+    req(input$units) # because change in grouping => nullify units => error
     
     df <- dfToPlot$df
     
-    if (!is.null(input$inputs_brush) & !is.null(input$units)){
+    isolate(
+    
+    if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 != '(all)'){
       
-      if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 != '(all)'){
+     brushed$df <- df[df$YEARMONTH == input$inputs_brush$panelvar2 &
+                             df$util_bill >= input$inputs_brush$ymin &
+                             df$util_bill <= input$inputs_brush$ymax &
+                             df[input$util_inputs] >= input$inputs_brush$xmin &
+                             df[input$util_inputs] <= input$inputs_brush$xmax, ]
+      
+    } else {
+      
+      if (input$inputs_brush$panelvar1 != '(all)' & input$inputs_brush$panelvar2 == '(all)'){
         
-        selected_brush <- df[df$YEARMONTH == input$inputs_brush$panelvar2 &
+        brushed$df <- df[df[input$grouping] == input$inputs_brush$panelvar1 &
                                df$util_bill >= input$inputs_brush$ymin &
                                df$util_bill <= input$inputs_brush$ymax &
                                df[input$util_inputs] >= input$inputs_brush$xmin &
-                               df[input$util_inputs] <= input$inputs_brush$xmax, ]
+                               df[input$util_inputs] <= input$inputs_brush$xmax, ] 
         
       } else {
         
-        if (input$inputs_brush$panelvar1 != '(all)' & input$inputs_brush$panelvar2 == '(all)'){
+        if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 == '(all)'){
           
-          selected_brush <- df[df[input$grouping] == input$inputs_brush$panelvar1 &
-                                 df$util_bill >= input$inputs_brush$ymin &
+          brushed$df <- df[df$util_bill >= input$inputs_brush$ymin &
                                  df$util_bill <= input$inputs_brush$ymax &
                                  df[input$util_inputs] >= input$inputs_brush$xmin &
                                  df[input$util_inputs] <= input$inputs_brush$xmax, ] 
           
         } else {
           
-          if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 == '(all)'){
-            
-            selected_brush <- df[df$util_bill >= input$inputs_brush$ymin &
-                                   df$util_bill <= input$inputs_brush$ymax &
-                                   df[input$util_inputs] >= input$inputs_brush$xmin &
-                                   df[input$util_inputs] <= input$inputs_brush$xmax, ] 
-            
-          } else {
-            
-            selected_brush <- brushedPoints(df, 
-                                            input$inputs_brush,
-                                            input$util_inputs,
-                                            'util_bill')
-            
-          }
+          brushed$df <- brushedPoints(df, 
+                                          input$inputs_brush,
+                                          input$util_inputs,
+                                          'util_bill')
+          
         }
-        
       }
       
-      selected_brush
-
     }
     
+    )
+    #selected_brush
+    
   })
+
+  # reactive dataframe based on brushed in Inputs tab, goes to chart and table in Select tab
+  
+  # pass_df_selected_brush <- reactive ({
+  #   
+  #   req(input$units, input$inputs_brush)
+  #   
+  #   df <- dfToPlot$df
+  # 
+  #     if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 != '(all)'){
+  #       
+  #       selected_brush <- df[df$YEARMONTH == input$inputs_brush$panelvar2 &
+  #                              df$util_bill >= input$inputs_brush$ymin &
+  #                              df$util_bill <= input$inputs_brush$ymax &
+  #                              df[input$util_inputs] >= input$inputs_brush$xmin &
+  #                              df[input$util_inputs] <= input$inputs_brush$xmax, ]
+  #       
+  #     } else {
+  #       
+  #       if (input$inputs_brush$panelvar1 != '(all)' & input$inputs_brush$panelvar2 == '(all)'){
+  #         
+  #         selected_brush <- df[df[input$grouping] == input$inputs_brush$panelvar1 &
+  #                                df$util_bill >= input$inputs_brush$ymin &
+  #                                df$util_bill <= input$inputs_brush$ymax &
+  #                                df[input$util_inputs] >= input$inputs_brush$xmin &
+  #                                df[input$util_inputs] <= input$inputs_brush$xmax, ] 
+  #         
+  #       } else {
+  #         
+  #         if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 == '(all)'){
+  #           
+  #           selected_brush <- df[df$util_bill >= input$inputs_brush$ymin &
+  #                                  df$util_bill <= input$inputs_brush$ymax &
+  #                                  df[input$util_inputs] >= input$inputs_brush$xmin &
+  #                                  df[input$util_inputs] <= input$inputs_brush$xmax, ] 
+  #           
+  #         } else {
+  #           
+  #           selected_brush <- brushedPoints(df, 
+  #                                           input$inputs_brush,
+  #                                           input$util_inputs,
+  #                                           'util_bill')
+  #           
+  #         }
+  #       }
+  #       
+  #     }
+  #     
+  #     selected_brush
+  # 
+  # 
+  # })
   
   output$Utilization_marginal1 <- renderPlot({
     
@@ -446,7 +522,7 @@ shinyServer(function(input, output, session) {
   
   output$utilization_YM <- renderPlot({
     
-    req(gr$x, input$units, dfToPlot$df)
+    req(gr$x, input$units)
     
     df <- dfToPlot$df
     g <- gr$x
@@ -589,10 +665,10 @@ shinyServer(function(input, output, session) {
   
   output$Utilization_marginal2 <- renderPlot({
     
-    req(gr$x, input$units, dfToPlot$df)
+    req(input$grouping, input$units, dfToPlot$df)
     
     df <- dfToPlot$df
-    g <- gr$x
+    g <- input$grouping
     
     if (!is.null(input$units)){
       
@@ -738,10 +814,15 @@ shinyServer(function(input, output, session) {
   
   output$utilization_inputs <- renderPlot({
     
+    req(input$units, input$color_var, input$util_inputs, input$alpha)
+    
     df <- dfToPlot$df
     
-    if (!is.null(input$units)){
-      
+    # isolate causes here, that error 'Error in layout_base: At least one layer must contain all variables used for facetting'
+    #   when grouping is changed and unis nullified, does not occur
+    
+    isolate(
+
       if (input$color_var == 'none'){
         
         plot_util_rel <- ggplot(aes_string(x = input$util_inputs, y = 'util_bill'), data = df) +
@@ -774,6 +855,8 @@ shinyServer(function(input, output, session) {
         }
       }
       
+    )
+      
       if (input$smooth == 'regression'){
         
         plot_util_rel <- plot_util_rel + geom_smooth(method = 'lm', alpha = 0.05) 
@@ -788,17 +871,20 @@ shinyServer(function(input, output, session) {
         
       }
       
+    
+      
       plot_util_rel
       
-    }
     
   })
   
   output$three <- renderScatterplotThree({
     
+    req(input$units) # causes when changing grouping and units are nullified, the 3d chart dissapears
+    
     input$render_three_button
     
-    df <- isolate(dfToPlot$df)
+    df <- dfToPlot$df
     
     isolate(
     
@@ -854,6 +940,11 @@ shinyServer(function(input, output, session) {
                                   color = three_color, 
                                   size = three_size,
                                   renderer = 'canvas'))
+    if (is.null(dfToPlot$df)){
+      
+      chartToPlot <- NULL
+      
+    }
     
     chartToPlot
     
@@ -863,12 +954,18 @@ shinyServer(function(input, output, session) {
   
   output$selected_chart <- renderPlot ({
     
-    if (!is.null(input$inputs_brush) & !is.null(input$units) & !is.null(dfToPlot$df)){
+    req(input$units, brushed$df, gr$x, input$util_inputs_selected, input$color_var_select)
+    
+    df <- brushed$df
+    g <- gr$x
+
+
+    if (!is.null(input$inputs_brush)){
       
       if (input$color_var_select %in% c('none', 'USER_NAME')){
         
         plot_selected <- ggplot(aes_string(x = input$util_inputs_selected, y = 'util_bill'),
-                                data = pass_df_selected_brush()) +
+                                data = df) +
           geom_point(alpha = 1/input$alpha, position = 'jitter', size = input$psize) +
           theme(legend.position = 'bottom',
             panel.background = element_rect(fill =NA),
@@ -881,10 +978,10 @@ shinyServer(function(input, output, session) {
         
       } else {
         
-        if (input$color_var_select != input$grouping){
+        if (input$color_var_select != g){
           
           plot_selected <- ggplot(aes_string(x = input$util_inputs_selected, y = 'util_bill', color = input$color_var_select),
-                                  data = pass_df_selected_brush()) +
+                                  data = df) +
             geom_point(alpha = 1/input$alpha, position = 'jitter', size = input$psize) +
             scale_colour_gradientn(colours = rainbow(5)) +
             theme(legend.position = 'bottom',
@@ -901,10 +998,10 @@ shinyServer(function(input, output, session) {
           
         } else {
           
-          if (input$color_var_select == input$grouping){
+          if (input$color_var_select == g){
             
             plot_selected <- ggplot(aes_string(x = input$util_inputs_selected, y = 'util_bill', color = input$color_var_select),
-                                    data = pass_df_selected_brush()) +
+                                    data = df) +
               geom_point(alpha = 1/input$alpha, position = 'jitter', size = input$psize) +
               theme(legend.position = 'bottom',
                 panel.background = element_rect(fill =NA),
@@ -922,9 +1019,9 @@ shinyServer(function(input, output, session) {
       
       if (input$smooth == 'regression') {
         
-        if (input$color_var_select == input$grouping){
+        if (input$color_var_select == g){
         
-          plot_selected <- plot_selected + geom_smooth(method = 'lm', aes_string(group = input$grouping), alpha = 0.05)
+          plot_selected <- plot_selected + geom_smooth(method = 'lm', aes_string(group = g), alpha = 0.05)
           
         } else {
           
@@ -940,9 +1037,9 @@ shinyServer(function(input, output, session) {
         
         if (input$smooth == 'mean'){
           
-          if (input$color_var_select == input$grouping){
+          if (input$color_var_select == g){
             
-            plot_selected <- plot_selected + geom_smooth(aes_string(group = input$grouping), alpha = 0.05)
+            plot_selected <- plot_selected + geom_smooth(aes_string(group = g), alpha = 0.05)
             
           } else {
             
@@ -968,18 +1065,18 @@ shinyServer(function(input, output, session) {
       if (!is.null(input$selected_table_rows_selected) & input$color_var_select == 'USER_NAME'){
         
         plot_selected <- plot_selected +
-          geom_point(data = pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),], size = input$psize + 3, aes(color = USER_NAME))
+          geom_point(data = df[as.numeric(input$selected_table_rows_selected),], size = input$psize + 3, aes(color = USER_NAME))
         
         if (input$smooth == 'regression'){
           
-          plot_selected <- plot_selected + geom_smooth(data = pass_df_selected_brush()[pass_df_selected_brush()$USER_NAME %in% unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])$USER_NAME,],
+          plot_selected <- plot_selected + geom_smooth(data = df[df$USER_NAME %in% unique(df[as.numeric(input$selected_table_rows_selected),'USER_NAME'])$USER_NAME,],
                                                        aes_string(group = 'USER_NAME'), alpha = 0.05, method = 'lm')
        
         } else {
           
           if (input$smooth == 'mean'){
             
-            plot_selected <- plot_selected + geom_smooth(data = pass_df_selected_brush()[pass_df_selected_brush()$USER_NAME %in% unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])$USER_NAME,],
+            plot_selected <- plot_selected + geom_smooth(data = df[df$USER_NAME %in% unique(df[as.numeric(input$selected_table_rows_selected),'USER_NAME'])$USER_NAME,],
                                                          aes_string(group = 'USER_NAME'), alpha = 0.05)
             
           }
@@ -988,10 +1085,12 @@ shinyServer(function(input, output, session) {
         
       } 
       
-      plot_selected
       
     }
     
+  
+    
+    plot_selected
     
     
   })
@@ -1106,19 +1205,15 @@ shinyServer(function(input, output, session) {
     
   })
   # 
-  output$test2 <- renderPrint({
-
-    clickedCountry()
-
-    #userCountry_map()
-
-  })
+  
 
   output$hovUserYM <- renderTable({
     
+    df <- brushed$df
+    
     if (!is.null(input$selected_hover)){
     
-      nearPoints(pass_df_selected_brush(), maxpoints = 17, input$selected_hover)[, c('USER_NAME', 'YEARMONTH')]
+      nearPoints(df, maxpoints = 17, input$selected_hover)[, c('USER_NAME', 'YEARMONTH')]
       
     }
     
@@ -1128,11 +1223,13 @@ shinyServer(function(input, output, session) {
   
   output$selected_table <- DT::renderDataTable({
     
+    df <- brushed$df
+    
     if (!is.null(input$inputs_brush) & !is.null(input$units)){
     
-      renderDT <- DT::datatable(pass_df_selected_brush()) %>%
+      renderDT <- DT::datatable(df) %>%
         formatStyle('util_bill', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue'))) %>%
-        formatStyle('t_bill', background = styleColorBar(pass_df_selected_brush()$t_bill, 'steelblue'))
+        formatStyle('t_bill', background = styleColorBar(df$t_bill, 'steelblue'))
       
       renderDT
       
@@ -1181,23 +1278,35 @@ shinyServer(function(input, output, session) {
     
   })
   
+  output$test2 <- renderPrint({
+    
+    #clickedCountry()
+    
+    #userCountry_map()
+    
+    dataMap$df@data[!is.na(dataMap$df@data$radius), c('name', 'measure_color', 'measure_circle', 'radius')]
+    
+  })
   
+  dataMap <- reactiveValues(df = NULL)
   
-  # creating reactive polygonsdataframe with user countries of selected units to plot map
-  
-  dataMap <- reactive({
+  observe({
+    
+    req(input$map_variable, input$map_statistic, input$map_quant, input$circle_variable)
     
     df <- dfToPlot$df
     
     if (!is.null(input$units) & input$tabs_1 == 'Map' & !is.null(df)){
-    
-      df <- df[, c('COUNTRY_NAME', 'YEARMONTH', input$map_variable)]
       
+      # polygons
+      
+      df <- df[, c('COUNTRY_NAME', 'YEARMONTH', input$map_variable)]
+
       if (input$map_statistic == 'mean'){
         
         dfToJoin <- df %>%
           group_by(COUNTRY_NAME) %>%
-          summarise_(measure = interp(~mean(var, na.rm = T), var = as.name(input$map_variable))) %>%
+          summarise_(measure_color = interp(~mean(var, na.rm = T), var = as.name(input$map_variable))) %>%
           ungroup()
         
       } else {
@@ -1206,7 +1315,7 @@ shinyServer(function(input, output, session) {
           
           dfToJoin <- df %>%
             group_by(COUNTRY_NAME) %>%
-            summarise_(measure = interp(~quantile(var, probs = pr, na.rm = T), var = as.name(input$map_variable), pr = input$map_quant)) %>%
+            summarise_(measure_color = interp(~quantile(var, probs = pr, na.rm = T), var = as.name(input$map_variable), pr = input$map_quant)) %>%
             ungroup()
           
           
@@ -1214,17 +1323,60 @@ shinyServer(function(input, output, session) {
         
       }
       
-      dfToJoin <- df %>%
-        group_by(COUNTRY_NAME) %>%
-        summarise(YM_meanCount = n()/length(unique(df$YEARMONTH))) %>%
-        ungroup() %>%
-        inner_join(dfToJoin)
-     
+      # circles
+      
+      if (input$circle_variable != 'YM_meanCount'){
+        
+        df <- dfToPlot$df[, c('COUNTRY_NAME', 'YEARMONTH', input$circle_variable)]
+        
+        if (input$circle_statistic == 'mean'){
+          
+          dfToJoin2 <- df %>%
+            group_by(COUNTRY_NAME) %>%
+            summarise_(measure_circle = interp(~mean(var, na.rm = T), var = as.name(input$circle_variable))) %>%
+            ungroup()
+          
+        } else {
+          
+          if (input$circle_statistic == 'percentile'){
+            
+            dfToJoin2 <- df %>%
+              group_by(COUNTRY_NAME) %>%
+              summarise_(measure_circle = interp(~quantile(var, probs = pr, na.rm = T), var = as.name(input$circle_variable), pr = input$circle_quant)) %>%
+              ungroup()
+            
+          }
+          
+        }
+        
+      } else {
+        
+        # monthly mean of user count in country
+        
+        df <- dfToPlot$df[, c('COUNTRY_NAME', 'YEARMONTH')]
+        
+        dfToJoin2 <- df %>%
+          group_by(COUNTRY_NAME) %>%
+          summarise(measure_circle = n()/length(unique(df$YEARMONTH))) %>%
+          ungroup()
+        
+      }
+      
+      dfToJoin2 <- dfToJoin2 %>%
+        mutate(radius = (1000000/max(measure_circle)) * measure_circle)
+      
+      dfToJoin <- dfToJoin %>%
+        full_join(dfToJoin2) 
+      
       dfToJoin <- rename(dfToJoin, name = COUNTRY_NAME)
+      
+      # cat(file=stderr(), "measure CAN", dfToJoin[dfToJoin$name == 'Canada','measure_circle'][['measure_circle']]) 
+      # cat(file=stderr(), "radius CAN", dfToJoin[dfToJoin$name == 'Canada','radius'][['radius']])
+      # cat(file=stderr(), "variable CAN", input$circle_variable)
       
       lnd@data <- lnd@data %>% left_join(dfToJoin)
       
-      lnd
+      dataMap$df <- lnd
       
     } 
     
@@ -1234,46 +1386,92 @@ shinyServer(function(input, output, session) {
   
   observe({
     
-    dat <- dataMap()
+    #req(input$map_variable, input$map_statistic, input$map_quant)
+    
+    dat <- dataMap$df
     
     proxy <- leafletProxy('countries')
+    
+    isolate(
  
     if (!is.null(dat) & input$tabs_1 == 'Map'){
-      
-      datCircles <- as.data.frame(gCentroid(dat, byid = T))
-      datCircles$YM_meanCount <- dat$YM_meanCount * 20000
-      datCircles <- datCircles[!is.na(datCircles$YM_meanCount),]
-      datCircles <- datCircles %>%
-        arrange(desc(YM_meanCount))
       
       toShow <- proxy %>%
         clearShapes() %>%
         addPolygons(data = dat, 
-                    color = ~colorpal()(measure), 
+                    group = 'poly',
+                    color = ~colorpal()(measure_color), 
                     stroke = F, smoothFactor = 0.2, 
-                    fillOpacity = 0.4) %>%
-        addCircles(data = datCircles, 
-                   radius = ~YM_meanCount, 
-                   lng = ~x, 
-                   lat = ~y, 
-                   weight = 1, 
-                   color = '#777777', 
-                   fillColor = '#4c4cff', 
-                   fillOpacity = 0.3,
-                   popup = ~paste('Average number of users in month: ', as.character(round(YM_meanCount/20000,2))))
+                    fillOpacity = 0.4)
+       
       
       toShow
     } else {
-      proxy %>% clearShapes()
+      #proxy %>% clearShapes()
     }
+    
+    )
+    
+    #toShow
     
   })
   
-  colorpal <- reactive({
-   
-    if (!is.null(dataMap())){
+  # add circles
+
+  observe({
+    
+    req(dataMap$df)
+
+    d <- dataMap$df
+
+    #proxy <- leafletProxy('countries')
+
+    if (!is.null(d) & input$tabs_1 == 'Map'){
+
+
+        datCircles <- as.data.frame(gCentroid(d, byid = T))
+        datCircles$measure_circle <-  d$measure_circle
+        datCircles$radius <- d$radius
+        datCircles <- datCircles[!is.na(datCircles$measure_circle),]
+        #datCircles <- datCircles[!is.infinite(datCircles$measure_circle),]
+        #datCircles$rad <- (2000000/max(datCircles$measure_circle)) * datCircles$measure_circle
+        
+        datCircles <- datCircles %>%
+          arrange(desc(radius))
+        
+        #cat(file=stderr(), "MEAN measure ", mean(datCircles[datCircles$name == 'Canada','measure_circle'][['measure_circle']], na.rm = T)) 
+        
+        proxy <- leafletProxy('countries')
+
+        toShow <- proxy %>%
+          addCircles(data = datCircles,
+                     group = 'circ',
+                     radius = ~radius,
+                     lng = ~x,
+                     lat = ~y,
+                     weight = 1,
+                     color = '#777777',
+                     fillColor = '#4c4cff',
+                     fillOpacity = 0.3,
+                     popup = ~paste(as.character(radius)))
+
+        toShow
+
+
+
       
-      mes <- dataMap()@data$measure
+
+    }
+
+  })
+  
+  colorpal <- reactive({
+    
+    df <- dataMap$df
+   
+    if (!is.null(df)){
+      
+      mes <- df@data$measure_color
       
       colorNumeric(palette = heat.colors(6), domain = mes)
 
@@ -1285,11 +1483,13 @@ shinyServer(function(input, output, session) {
   
   observe({
     
+    df <- dataMap$df
+    
     proxy <- leafletProxy('countries')
 
-    if (!is.null(dataMap()) & input$tabs_1 == 'Map'){
+    if (!is.null(df) & input$tabs_1 == 'Map'){
       
-      mes <- dataMap()@data$measure
+      mes <- df@data$measure_color
       
       proxy %>% 
         clearControls() %>%
@@ -1305,17 +1505,28 @@ shinyServer(function(input, output, session) {
   
   output$countries <- renderLeaflet({
     
+    #req(input$units)
+    
+    isolate(
+    
     if (input$tabs_1 == 'Map'){
     
       #pal <- colorpal()
       
       cmap <- leaflet() %>%
-        addTiles()
+        addTiles() %>%
+        addLayersControl(
+          #baseGroups = c("OSM (default)", "Toner", "Toner Lite"),
+          overlayGroups = c("poly", "circ"),
+          options = layersControlOptions(collapsed = FALSE),
+          position = 'bottomright'
+        )
 
       cmap
       
     }
     
+    )
     
   })
   
