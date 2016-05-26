@@ -104,7 +104,7 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                  multiple = F)
     ),
     
-    conditionalPanel(condition = "input.tabs_1 == 'Inputs' && input.input_chartType == '2d'",
+    conditionalPanel(condition = "input.tabs_1 == 'Inputs' && (input.input_chartType == '2d' || input.input_chartType == 'box')",
                    
                      selectInput(inputId = 'util_inputs',
                                  choices = c('Tracked billable' = 't_bill',
@@ -113,6 +113,23 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                  label = 'X variable',
                                  multiple = F,
                                  selected = 't_bill')
+    ),
+    
+    conditionalPanel(condition = "input.tabs_1 == 'Inputs' && input.input_chartType == 'box'",
+                     
+                     selectInput(inputId = 'bin_option',
+                                 choices = c('Split on values' = 'value',
+                                             'Split on quantiles' = 'quantile'),
+                                 selected = 'quantile',
+                                 label = NULL,
+                                 multiple = F),
+                     
+                     sliderInput('box_bins',
+                                 label = 'Nr. of bins',
+                                 min = 2,
+                                 max = 10,
+                                 value = 5,
+                                 step = 1)
     ),
     
     
@@ -277,6 +294,7 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                              height = '600px'),
                
                verbatimTextOutput('test2'),
+               verbatimTextOutput('test3'),
                
                DT::dataTableOutput('usersCountry_table'),
                

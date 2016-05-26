@@ -375,62 +375,7 @@ shinyServer(function(input, output, session) {
     
   })
 
-  # reactive dataframe based on brushed in Inputs tab, goes to chart and table in Select tab
-  
-  # pass_df_selected_brush <- reactive ({
-  #   
-  #   req(input$units, input$inputs_brush)
-  #   
-  #   df <- dfToPlot$df
-  # 
-  #     if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 != '(all)'){
-  #       
-  #       selected_brush <- df[df$YEARMONTH == input$inputs_brush$panelvar2 &
-  #                              df$util_bill >= input$inputs_brush$ymin &
-  #                              df$util_bill <= input$inputs_brush$ymax &
-  #                              df[input$util_inputs] >= input$inputs_brush$xmin &
-  #                              df[input$util_inputs] <= input$inputs_brush$xmax, ]
-  #       
-  #     } else {
-  #       
-  #       if (input$inputs_brush$panelvar1 != '(all)' & input$inputs_brush$panelvar2 == '(all)'){
-  #         
-  #         selected_brush <- df[df[input$grouping] == input$inputs_brush$panelvar1 &
-  #                                df$util_bill >= input$inputs_brush$ymin &
-  #                                df$util_bill <= input$inputs_brush$ymax &
-  #                                df[input$util_inputs] >= input$inputs_brush$xmin &
-  #                                df[input$util_inputs] <= input$inputs_brush$xmax, ] 
-  #         
-  #       } else {
-  #         
-  #         if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 == '(all)'){
-  #           
-  #           selected_brush <- df[df$util_bill >= input$inputs_brush$ymin &
-  #                                  df$util_bill <= input$inputs_brush$ymax &
-  #                                  df[input$util_inputs] >= input$inputs_brush$xmin &
-  #                                  df[input$util_inputs] <= input$inputs_brush$xmax, ] 
-  #           
-  #         } else {
-  #           
-  #           selected_brush <- brushedPoints(df, 
-  #                                           input$inputs_brush,
-  #                                           input$util_inputs,
-  #                                           'util_bill')
-  #           
-  #         }
-  #       }
-  #       
-  #     }
-  #     
-  #     selected_brush
-  # 
-  # 
-  # })
-  
   output$Utilization_marginal1 <- renderPlot({
-    
-    # cat(file=stderr(), "-------------UNITS---------", input$units)
-    # cat(file=stderr(), "-------------GROUPING---------", input$grouping)
     
     df <- dfToPlot$df
     
@@ -527,11 +472,6 @@ shinyServer(function(input, output, session) {
     df <- dfToPlot$df
     g <- gr$x
 
-    #cat(file=stderr(), "-------------UNITS---------", input$units)
-    #cat(file=stderr(), "-------------GROUPING---------", input$grouping)
-    
-    
-    
     if (input$mainPlotVis == 'Boxplots'){
 
       plot_util_YM <- ggplot(aes_string(y = 'util_bill', fill = g), data = df) + 
@@ -562,11 +502,6 @@ shinyServer(function(input, output, session) {
       }
       
   
-        
-        
-        
-      
-    
     } else {
      
       if (input$mainPlotVis == 'Stacked barchart with counts') {
@@ -804,8 +739,17 @@ shinyServer(function(input, output, session) {
       
     } else {
       
-      scatterplotThreeOutput('three',
+      if (input$input_chartType == '3d'){
+      
+        scatterplotThreeOutput('three',
                              height = '700px')
+        
+      } else {
+        
+        plotOutput('utilization_inputs_box',
+                   height = '1200px')
+        
+      }
       
     }
     
@@ -875,6 +819,42 @@ shinyServer(function(input, output, session) {
       
       plot_util_rel
       
+    
+  })
+  
+  output$utilization_inputs_box <- renderPlot({
+    
+    req(input$units, input$util_inputs)
+    
+    df <- dfToPlot$df
+    
+    # binning
+
+    if (input$bin_option == 'quantile'){
+
+      var_cuts <- quantile(df[, input$util_inputs][[input$util_inputs]], (0:input$box_bins)/input$box_bins, na.rm = T)
+      var_binned <- cut(df[, input$util_inputs][[input$util_inputs]], var_cuts, include.lowest =  T)
+      df$xBinned <- var_binned
+      #
+    } else {
+
+      var_binned <- cut(df[, input$util_inputs][[input$util_inputs]],
+                        input$box_bins, include.lowest = T)
+      df$xBinned <- var_binned
+
+    }
+    
+    bin_plot <- ggplot(aes_string(x = 'xBinned', y = 'util_bill', fill = input$grouping), data = df) +
+      geom_boxplot(alpha = 0.4) +
+      facet_grid(as.formula(paste('YEARMONTH', ' ~ ', 'GEO_NAME')), margins = T) +
+      theme(legend.position = 'none',
+            panel.background = element_rect(fill =NA),
+            panel.grid.major = element_line(colour = '#e5e5e5'),
+            axis.line = element_line(colour = '#BDBDBD'),
+            strip.background = element_rect(fill = '#e5e5ff'),
+            strip.text = element_text(face = 'bold'))
+    
+    bin_plot
     
   })
   
@@ -1284,7 +1264,18 @@ shinyServer(function(input, output, session) {
     
     #userCountry_map()
     
-    dataMap$df@data[!is.na(dataMap$df@data$radius), c('name', 'measure_color', 'measure_circle', 'radius')]
+    df <- dataMap$df@data[!is.na(dataMap$df@data$radius), c('name', 'measure_color', 'measure_circle', 'radius', 'maxc')]
+    arrange(df, desc(radius))
+    
+  })
+  
+  output$test3 <- renderPrint({
+    
+    #clickedCountry()
+    
+    #userCountry_map()
+    
+    dfcirc$df
     
   })
   
@@ -1292,11 +1283,11 @@ shinyServer(function(input, output, session) {
   
   observe({
     
-    req(input$map_variable, input$map_statistic, input$map_quant, input$circle_variable)
+    req(input$units, dfToPlot$df, input$map_variable, input$map_statistic, input$map_quant, input$circle_variable)
     
     df <- dfToPlot$df
     
-    if (!is.null(input$units) & input$tabs_1 == 'Map' & !is.null(df)){
+    #if (!is.null(input$units) & input$tabs_1 == 'Map'){
       
       # polygons
       
@@ -1349,6 +1340,8 @@ shinyServer(function(input, output, session) {
           
         }
         
+        
+        
       } else {
         
         # monthly mean of user count in country
@@ -1362,8 +1355,15 @@ shinyServer(function(input, output, session) {
         
       }
       
+      
+      
       dfToJoin2 <- dfToJoin2 %>%
-        mutate(radius = (1000000/max(measure_circle)) * measure_circle)
+        mutate(radius = (1000000/max(measure_circle)) * measure_circle) %>%
+        mutate(maxc = max(measure_circle))
+      #dfToJoin2$maxcountry <- dfToJoin2[dfToJoin2$measure_circle == dfToJoin2$maxc, 'COUNTRY_NAME']$COUNTRY_NAME # moze byt ich aj viac, Error in $<-.data.frame: replacement has 3 rows, data has 5
+      
+      cat(file=stderr(), "nrow1", nrow(dfToJoin)) 
+      cat(file=stderr(), "nrow2", nrow(dfToJoin2)) 
       
       dfToJoin <- dfToJoin %>%
         full_join(dfToJoin2) 
@@ -1378,23 +1378,39 @@ shinyServer(function(input, output, session) {
       
       dataMap$df <- lnd
       
-    } 
+    #} 
     
   })
   
-  # add polygons
+  dfcirc <- reactiveValues(df = NULL)
+  
+  
+  # add polygons and circles
   
   observe({
     
-    #req(input$map_variable, input$map_statistic, input$map_quant)
+    req(input$map_variable, input$map_statistic, input$map_quant, input$units)
     
     dat <- dataMap$df
     
     proxy <- leafletProxy('countries')
     
-    isolate(
+    #isolate(
  
-    if (!is.null(dat) & input$tabs_1 == 'Map'){
+    if (!is.null(dat)){
+      
+      datCircles <- as.data.frame(gCentroid(dat, byid = T))
+      datCircles$name <- dat$name
+      datCircles$measure_circle <-  dat$measure_circle
+      datCircles$measure_color <-  dat$measure_color
+      datCircles$radius <- (dat$radius/(abs(datCircles$y)^(2/5))) * 10 # stupid, need adjust circles somehow or reproject somehow, plotted radius differs when changing lat
+      datCircles <- datCircles[!is.na(datCircles$measure_circle),]
+      
+      datCircles <- datCircles %>%
+        arrange(desc(radius))
+      
+      dfcirc$df <- datCircles # for test2 verbatimtext output
+      
       
       toShow <- proxy %>%
         clearShapes() %>%
@@ -1402,68 +1418,27 @@ shinyServer(function(input, output, session) {
                     group = 'poly',
                     color = ~colorpal()(measure_color), 
                     stroke = F, smoothFactor = 0.2, 
-                    fillOpacity = 0.4)
+                    fillOpacity = 0.4) %>%
+        addCircles(data = datCircles,
+                   group = 'circ',
+                   radius = ~radius,
+                   lng = ~x,
+                   lat = ~y,
+                   weight = 1,
+                   color = '#777777',
+                   fillColor = '#4c4cff',
+                   fillOpacity = 0.3,
+                   popup = ~paste(name, ', ', input$circle_variable, ': ',  round(measure_circle, 2), ', ', input$map_variable, ': ', round(measure_color, 2)))
+      
        
       
       toShow
-    } else {
-      #proxy %>% clearShapes()
-    }
+    } #)
     
-    )
-    
-    #toShow
-    
+   
+
   })
   
-  # add circles
-
-  observe({
-    
-    req(dataMap$df)
-
-    d <- dataMap$df
-
-    #proxy <- leafletProxy('countries')
-
-    if (!is.null(d) & input$tabs_1 == 'Map'){
-
-
-        datCircles <- as.data.frame(gCentroid(d, byid = T))
-        datCircles$measure_circle <-  d$measure_circle
-        datCircles$radius <- d$radius
-        datCircles <- datCircles[!is.na(datCircles$measure_circle),]
-        #datCircles <- datCircles[!is.infinite(datCircles$measure_circle),]
-        #datCircles$rad <- (2000000/max(datCircles$measure_circle)) * datCircles$measure_circle
-        
-        datCircles <- datCircles %>%
-          arrange(desc(radius))
-        
-        #cat(file=stderr(), "MEAN measure ", mean(datCircles[datCircles$name == 'Canada','measure_circle'][['measure_circle']], na.rm = T)) 
-        
-        proxy <- leafletProxy('countries')
-
-        toShow <- proxy %>%
-          addCircles(data = datCircles,
-                     group = 'circ',
-                     radius = ~radius,
-                     lng = ~x,
-                     lat = ~y,
-                     weight = 1,
-                     color = '#777777',
-                     fillColor = '#4c4cff',
-                     fillOpacity = 0.3,
-                     popup = ~paste(as.character(radius)))
-
-        toShow
-
-
-
-      
-
-    }
-
-  })
   
   colorpal <- reactive({
     
@@ -1487,7 +1462,7 @@ shinyServer(function(input, output, session) {
     
     proxy <- leafletProxy('countries')
 
-    if (!is.null(df) & input$tabs_1 == 'Map'){
+    if (!is.null(df)){
       
       mes <- df@data$measure_color
       
@@ -1507,9 +1482,9 @@ shinyServer(function(input, output, session) {
     
     #req(input$units)
     
-    isolate(
+    #isolate(
     
-    if (input$tabs_1 == 'Map'){
+    #if (input$tabs_1 == 'Map'){
     
       #pal <- colorpal()
       
@@ -1520,13 +1495,13 @@ shinyServer(function(input, output, session) {
           overlayGroups = c("poly", "circ"),
           options = layersControlOptions(collapsed = FALSE),
           position = 'bottomright'
-        )
+        )#)
 
       cmap
       
-    }
+    #}
     
-    )
+    
     
   })
   

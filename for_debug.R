@@ -24,8 +24,7 @@ loadData <- function() {
     select(GEO_ID, GEO_NAME) #%>%
     #rename(GEO_ID = ID, GEO_NAME = NAME)
   countries <- countries %>%
-    select(ID, NAME) %>%
-    rename(COUNTRY_ID = ID, COUNTRY_NAME = NAME)
+    select(COUNTRY_ID, COUNTRY_NAME) 
   user <- user %>%
     mutate(USER_NAME = paste(FIRSTNAME, LASTNAME)) %>%
     rename(USER_ID = ID) %>%
@@ -122,3 +121,282 @@ lnd[SpatialPoints(coords = matrix(c(19.50766, 48.72671), ncol = 2), proj4string 
 # http://stackoverflow.com/questions/7466023/how-to-give-color-to-each-class-in-scatter-plot-in-r - colors, last answer
 # http://bioinfo.umassmed.edu/bootstrappers/bootstrappers-courses/courses/rCourse/resources/helpfulGuides/Rcolorstyle.pdf - guide to using colors
 # http://research.stowers-institute.org/efg/Report/UsingColorInR.pdf - colors in R basics presentation
+
+dataMap <- reactiveValues(df = NULL)
+
+observe({
+  
+  req(input$map_variable, input$map_statistic, input$map_quant, input$circle_variable)
+  
+  df <- dfToPlot$df
+  
+  if (!is.null(input$units) & input$tabs_1 == 'Map' & !is.null(df)){
+    
+    # polygons
+    
+    df <- df[, c('COUNTRY_NAME', 'YEARMONTH', input$map_variable)]
+    
+    if (input$map_statistic == 'mean'){
+      
+      dfToJoin <- df %>%
+        group_by(COUNTRY_NAME) %>%
+        summarise_(measure_color = interp(~mean(var, na.rm = T), var = as.name(input$map_variable))) %>%
+        ungroup()
+      
+    } else {
+      
+      if (input$map_statistic == 'percentile'){
+        
+        dfToJoin <- df %>%
+          group_by(COUNTRY_NAME) %>%
+          summarise_(measure_color = interp(~quantile(var, probs = pr, na.rm = T), var = as.name(input$map_variable), pr = input$map_quant)) %>%
+          ungroup()
+        
+        
+      }
+      
+    }
+    
+    # circles
+    
+    if (input$circle_variable != 'YM_meanCount'){
+      
+      df <- dfToPlot$df[, c('COUNTRY_NAME', 'YEARMONTH', input$circle_variable)]
+      
+      if (input$circle_statistic == 'mean'){
+        
+        dfToJoin2 <- df %>%
+          group_by(COUNTRY_NAME) %>%
+          summarise_(measure_circle = interp(~mean(var, na.rm = T), var = as.name(input$circle_variable))) %>%
+          ungroup()
+        
+      } else {
+        
+        if (input$circle_statistic == 'percentile'){
+          
+          dfToJoin2 <- df %>%
+            group_by(COUNTRY_NAME) %>%
+            summarise_(measure_circle = interp(~quantile(var, probs = pr, na.rm = T), var = as.name(input$circle_variable), pr = input$circle_quant)) %>%
+            ungroup()
+          
+        }
+        
+      }
+      
+    } else {
+      
+      # monthly mean of user count in country
+      
+      df <- dfToPlot$df[, c('COUNTRY_NAME', 'YEARMONTH')]
+      
+      dfToJoin2 <- df %>%
+        group_by(COUNTRY_NAME) %>%
+        summarise(measure_circle = n()/length(unique(df$YEARMONTH))) %>%
+        ungroup()
+      
+    }
+    
+    dfToJoin2 <- dfToJoin2 %>%
+      mutate(radius = (1000000/max(measure_circle)) * measure_circle)
+    
+    dfToJoin <- dfToJoin %>%
+      full_join(dfToJoin2) 
+    
+    dfToJoin <- rename(dfToJoin, name = COUNTRY_NAME)
+    
+    # cat(file=stderr(), "measure CAN", dfToJoin[dfToJoin$name == 'Canada','measure_circle'][['measure_circle']]) 
+    # cat(file=stderr(), "radius CAN", dfToJoin[dfToJoin$name == 'Canada','radius'][['radius']])
+    # cat(file=stderr(), "variable CAN", input$circle_variable)
+    
+    lnd@data <- lnd@data %>% left_join(dfToJoin)
+    
+    dataMap$df <- lnd
+    
+  } 
+  
+})
+
+# add polygons
+
+observe({
+  
+  #req(input$map_variable, input$map_statistic, input$map_quant)
+  
+  dat <- dataMap$df
+  
+  proxy <- leafletProxy('countries')
+  
+  isolate(
+    
+    if (!is.null(dat) & input$tabs_1 == 'Map'){
+      
+      toShow <- proxy %>%
+        clearShapes() %>%
+        addPolygons(data = dat, 
+                    group = 'poly',
+                    color = ~colorpal()(measure_color), 
+                    stroke = F, smoothFactor = 0.2, 
+                    fillOpacity = 0.4)
+      
+      
+      toShow
+    } else {
+      #proxy %>% clearShapes()
+    }
+    
+  )
+  
+  #toShow
+  
+})
+
+dfcirc <- reactiveValues(df = NULL)
+
+# add circles
+
+observe({
+  
+  req(dataMap$df)
+  
+  d <- dataMap$df
+  
+  #proxy <- leafletProxy('countries')
+  
+  if (!is.null(d) & input$tabs_1 == 'Map'){
+    
+    
+    datCircles <- as.data.frame(gCentroid(d, byid = T))
+    datCircles$measure_circle <-  d$measure_circle
+    datCircles$radius <- d$radius
+    datCircles <- datCircles[!is.na(datCircles$measure_circle),]
+    #datCircles <- datCircles[!is.infinite(datCircles$measure_circle),]
+    #datCircles$rad <- (2000000/max(datCircles$measure_circle)) * datCircles$measure_circle
+    
+    datCircles <- datCircles %>%
+      arrange(desc(radius))
+    
+    dfcirc$df <- datCircles
+    
+    #cat(file=stderr(), "MEAN measure ", mean(datCircles[datCircles$name == 'Canada','measure_circle'][['measure_circle']], na.rm = T)) 
+    
+    proxy <- leafletProxy('countries')
+    
+    toShow <- proxy %>%
+      #clearShapes() %>%
+      addCircles(data = datCircles,
+                 group = 'circ',
+                 radius = ~radius,
+                 lng = ~x,
+                 lat = ~y,
+                 weight = 1,
+                 color = '#777777',
+                 fillColor = '#4c4cff',
+                 fillOpacity = 0.3,
+                 popup = ~paste(as.character(radius), ' / ', x, ' / ', y)) %>%
+      addCircles(data = as.data.frame(matrix(c(0,0, 500000), ncol = 3)),
+                 radius = ~V3,
+                 lng = ~V1,
+                 lat = ~V2,
+                 weight = 1) %>%
+      addCircles(data = as.data.frame(matrix(c(10,0, 1000000), ncol = 3)),
+                 radius = ~V3,
+                 lng = ~V1,
+                 lat = ~V2,
+                 weight = 1)
+    
+    
+    toShow
+    
+    
+    
+    
+    
+  }
+  
+})
+
+colorpal <- reactive({
+  
+  df <- dataMap$df
+  
+  if (!is.null(df)){
+    
+    mes <- df@data$measure_color
+    
+    colorNumeric(palette = heat.colors(6), domain = mes)
+    
+  }
+  
+})
+
+# add legend
+
+observe({
+  
+  df <- dataMap$df
+  
+  proxy <- leafletProxy('countries')
+  
+  if (!is.null(df) & input$tabs_1 == 'Map'){
+    
+    mes <- df@data$measure_color
+    
+    proxy %>% 
+      clearControls() %>%
+      addLegend(position = 'bottomleft',
+                pal = colorpal(),
+                values = mes)
+    
+  } else {
+    proxy %>% clearControls()
+  }
+  
+})
+
+output$countries <- renderLeaflet({
+  
+  #req(input$units)
+  
+  #isolate(
+  
+  if (input$tabs_1 == 'Map'){
+    
+    #pal <- colorpal()
+    
+    cmap <- leaflet() %>%
+      addTiles() %>%
+      addLayersControl(
+        #baseGroups = c("OSM (default)", "Toner", "Toner Lite"),
+        overlayGroups = c("poly", "circ"),
+        options = layersControlOptions(collapsed = FALSE),
+        position = 'bottomright'
+      )
+    
+    cmap
+    
+  }
+  
+  #)
+  
+})
+
+clickedCountry <- reactive({
+  
+  req(input$countries_shape_click)
+  
+  lat <- input$countries_shape_click$lat
+  lon <- input$countries_shape_click$lng
+  coo <- matrix(c(lon, lat), ncol = 2)
+  
+  ctr <- lnd[SpatialPoints(coords = coo, proj4string = CRS(proj4string(lnd))), ]@data$name
+  
+  ctr
+  
+})
+
+output$usersCountry_table <- DT::renderDataTable({
+  
+  dat <- dfToPlot$df
+  dat[dat$COUNTRY_NAME == clickedCountry(),]
+  
+})
