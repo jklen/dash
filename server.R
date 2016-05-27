@@ -746,7 +746,7 @@ shinyServer(function(input, output, session) {
         
       } else {
         
-        plotOutput('utilization_inputs_box',
+        plotlyOutput('utilization_inputs_box',
                    height = '1200px')
         
       }
@@ -771,7 +771,6 @@ shinyServer(function(input, output, session) {
         
         plot_util_rel <- ggplot(aes_string(x = input$util_inputs, y = 'util_bill'), data = df) +
           geom_point(alpha = 1/input$alpha, position = 'jitter') +
-          facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T) +
           theme(#aspect.ratio  = 1, - bug pri brushingu
             legend.position = 'none',
             panel.background = element_rect(fill =NA),
@@ -786,7 +785,6 @@ shinyServer(function(input, output, session) {
           
           plot_util_rel <- ggplot(aes_string(x = input$util_inputs, y = 'util_bill', color = input$color_var), data = df) +
             geom_point(alpha = 1/input$alpha, position = 'jitter') +
-            facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T) +
             scale_colour_gradientn(colours=rainbow(5)) +
             theme(#aspect.ratio  = 1, - bug pri brushingu
               #legend.position = 'none',
@@ -800,33 +798,54 @@ shinyServer(function(input, output, session) {
       }
       
     )
+    
+    if (input$include_summary == T){
       
-      if (input$smooth == 'regression'){
-        
-        plot_util_rel <- plot_util_rel + geom_smooth(method = 'lm', alpha = 0.05) 
-        
-      } else {
-        
-        if (input$smooth == 'mean'){
-        
-          plot_util_rel <- plot_util_rel + geom_smooth(alpha = 0.05)
-          
-        }
+      plot_util_rel <- plot_util_rel +
+        facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T)
+      
+    } else {
+      
+      plot_util_rel <- plot_util_rel +
+        facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)))
+      
+    }
+      
+    if (input$smooth == 'regression'){
+      
+      plot_util_rel <- plot_util_rel + geom_smooth(method = 'lm', alpha = 0.05) 
+      
+    } else {
+      
+      if (input$smooth == 'mean'){
+      
+        plot_util_rel <- plot_util_rel + geom_smooth(alpha = 0.05)
         
       }
       
+    }
+      
     
       
-      plot_util_rel
+    plot_util_rel
       
     
   })
   
-  output$utilization_inputs_box <- renderPlot({
+  output$test_inputs <- renderPrint({
+    
+    event.data <- event_data("plotly_click", source = "select")
+    event.data
+    
+  })
+  
+  output$utilization_inputs_box <- renderPlotly({
     
     req(input$units, input$util_inputs)
     
     df <- dfToPlot$df
+    
+    
     
     # binning
 
@@ -846,14 +865,36 @@ shinyServer(function(input, output, session) {
     
     bin_plot <- ggplot(aes_string(x = 'xBinned', y = 'util_bill', fill = input$grouping), data = df) +
       geom_boxplot(alpha = 0.4) +
-      facet_grid(as.formula(paste('YEARMONTH', ' ~ ', 'GEO_NAME')), margins = T) +
+      geom_point(fun.y = mean, stat = 'summary', shape = 1) +
       theme(legend.position = 'none',
             panel.background = element_rect(fill =NA),
             panel.grid.major = element_line(colour = '#e5e5e5'),
             axis.line = element_line(colour = '#BDBDBD'),
             strip.background = element_rect(fill = '#e5e5ff'),
-            strip.text = element_text(face = 'bold'))
+            strip.text = element_text(face = 'bold')) +
+      xlab(input$util_inputs)
     
+    if (input$include_summary == T){
+      
+      bin_plot <- bin_plot +
+        facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T)
+      
+    } else {
+      
+      bin_plot <- bin_plot +
+        facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)))
+      
+    }
+    
+    if (input$boxlines == T){
+      
+      bin_plot <- bin_plot +
+      geom_line(fun.y = mean, stat = 'summary', size = 1, alpha = 0.4, aes(group = input$grouping), color = 'red') +
+        geom_line(fun.y = median, stat = 'summary', size = 1, alpha = 0.4, aes(group = input$grouping), color = 'blue')
+      
+    }
+    
+    bin_plot <- ggplotly(bin_plot, source = 'select')
     bin_plot
     
   })

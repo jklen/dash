@@ -97,7 +97,7 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                      
                      selectInput(inputId = 'input_chartType',
                                  choices = c('Faceted 2d scatter plot' = '2d',
-                                             'Boxplot of binned x variable' = 'box',
+                                             'Faceted boxplot of binned x variable' = 'box',
                                              '3d scatter plot with all selected data' = '3d'),
                                  selected = '2d',
                                  label = 'Chart type',
@@ -105,6 +105,10 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
     ),
     
     conditionalPanel(condition = "input.tabs_1 == 'Inputs' && (input.input_chartType == '2d' || input.input_chartType == 'box')",
+                     
+                     checkboxInput('include_summary',
+                                   label = 'Include summary rows and columns',
+                                   value = F),
                    
                      selectInput(inputId = 'util_inputs',
                                  choices = c('Tracked billable' = 't_bill',
@@ -113,6 +117,8 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                  label = 'X variable',
                                  multiple = F,
                                  selected = 't_bill')
+                     
+                     
     ),
     
     conditionalPanel(condition = "input.tabs_1 == 'Inputs' && input.input_chartType == 'box'",
@@ -129,7 +135,9 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                  min = 2,
                                  max = 10,
                                  value = 5,
-                                 step = 1)
+                                 step = 1),
+                     
+                     checkboxInput('boxlines', label = 'Include median and mean as lines', value = F)
     ),
     
     
@@ -211,6 +219,8 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
       tabPanel('Inputs', 
                
                uiOutput('inputs_plot'),
+               
+               verbatimTextOutput('test_inputs'),
                
                conditionalPanel(condition = "input.tabs_1 == 'Inputs' && input.input_chartType == '3d'",
                                 
