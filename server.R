@@ -24,12 +24,12 @@ load('.Rdata')
 summaryfunction <- function (x){
   if( is.numeric(x)!=TRUE) {stop("Supplied X is not numeric")}
   mysummary = data.frame(
-    "Min." =as.numeric( min(x, na.rm = T)),
-    "1st Qu." = quantile(x, na.rm = T)[2],
-    "Median" = median(x, na.rm = T),
-    "Mean" = mean(x, na.rm = T),
-    "3rd Qu." = quantile(x, na.rm = T)[4],
-    "Max." = max(x, na.rm = T),
+    "Min." = round(as.numeric( min(x, na.rm = T)), 2),
+    "1st Qu." = round(quantile(x, na.rm = T)[2], 2),
+    "Median" = round(median(x, na.rm = T), 2),
+    "Mean" = round(mean(x, na.rm = T), 2),
+    "3rd Qu." = round(quantile(x, na.rm = T)[4], 2),
+    "Max." = round(max(x, na.rm = T), 2),
     row.names=""
     
   )
@@ -255,7 +255,7 @@ shinyServer(function(input, output, session) {
     df_util_r
     
   })
-  
+
   dfToPlot <- reactiveValues(df = NULL)
   
 
@@ -834,7 +834,14 @@ shinyServer(function(input, output, session) {
   
   output$test_inputs <- renderPrint({
     
-    event.data <- event_data("plotly_click", source = "select")
+    event.data <- event_data("plotly_click", source = "plotly1")
+    event.data
+    
+  })
+  
+  output$test_inputs2 <- renderPrint({
+    
+    event.data <- event_data("plotly_selected", source = "plotly1")
     event.data
     
   })
@@ -866,6 +873,7 @@ shinyServer(function(input, output, session) {
     bin_plot <- ggplot(aes_string(x = 'xBinned', y = 'util_bill', fill = input$grouping), data = df) +
       geom_boxplot(alpha = 0.4) +
       geom_point(fun.y = mean, stat = 'summary', shape = 1) +
+      coord_cartesian(ylim = c(0,1.5)) +
       theme(legend.position = 'none',
             panel.background = element_rect(fill =NA),
             panel.grid.major = element_line(colour = '#e5e5e5'),
@@ -894,7 +902,7 @@ shinyServer(function(input, output, session) {
       
     }
     
-    bin_plot <- ggplotly(bin_plot, source = 'select')
+    bin_plot <- ggplotly(bin_plot, source = 'plotly1')
     bin_plot
     
   })
@@ -1147,7 +1155,7 @@ shinyServer(function(input, output, session) {
     
   })
   
-  plots_clickDF <- reactiveValues(summary2 = NULL, summary3 = NULL, unit = NULL, YM = NULL)
+  plots_clickDF <- reactiveValues(summary = NULL, unit = NULL, YM = NULL, main_dTable = NULL)
 
   observeEvent(input$main_click, {
     
@@ -1168,10 +1176,41 @@ shinyServer(function(input, output, session) {
     
     clicked_unit <- unit_levelsYM[unit_YM_position]
     
-      plots_clickDF$summary2 <- df[df['YEARMONTH'] == YM_clicked & df[input$grouping] == clicked_unit,  'util_bill']
-      plots_clickDF$summary3 <- df[df['YEARMONTH'] == YM_clicked,  'util_bill']
-      plots_clickDF$unit <- clicked_unit
-      plots_clickDF$YM <- YM_clicked
+    # for main summary
+    
+        # summary of unit in YM
+    
+    summaryDF <- summaryfunction(df[df['YEARMONTH'] == YM_clicked & df[input$grouping] == clicked_unit,  'util_bill'][['util_bill']])
+    summaryDF <- gather(summaryDF)
+    colnames(summaryDF)[names(summaryDF) == 'value'] <- clicked_unit
+    colnames(summaryDF)[names(summaryDF) == 'key'] <- YM_clicked
+
+        # summary of all selected units in YM
+    
+    summaryDF2 <- summaryfunction(df[df['YEARMONTH'] == YM_clicked,  'util_bill'][['util_bill']])
+    summaryDF2 <- gather(summaryDF2)
+    summaryDF2$key <- NULL
+    colnames(summaryDF2)[names(summaryDF2) == 'value'] <- 'All selected'
+
+    plots_clickDF$summary <- bind_cols(summaryDF, summaryDF2)
+    
+    # for main datatable
+    
+    all_unitsDF <- pass_df()
+    all_unitsDF <- all_unitsDF[all_unitsDF$YEARMONTH == YM_clicked,] # filter out not clicked months
+
+    all_unitsDF <- all_unitsDF %>%
+      group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
+                  summarise(min = round(min(util_bill), 2), 
+                            max = round(max(util_bill), 2), 
+                            avg = round(mean(util_bill), 2),
+                            median = round(median(util_bill), 2),
+                            t_bill_sum = round(sum(t_bill), 2),
+                            t_inv_sum = round(sum(t_inv), 2),
+                            count = n()) %>%
+                  ungroup()
+    
+    plots_clickDF$main_dTable <- all_unitsDF
       
     
     
@@ -1184,37 +1223,55 @@ shinyServer(function(input, output, session) {
     unit_levels <- levels(as.factor(df[input$grouping][[input$grouping]]))
     unit_clicked <- unit_levels[round(input$marginal2_click$x)]
     
-    plots_clickDF$summary2 <- df[df[input$grouping] == unit_clicked,  'util_bill']
-    plots_clickDF$unit <- unit_clicked
-    plots_clickDF$summary3 <- df
-    plots_clickDF$YM <- 'All months'
+    # for main summary
     
-  })
-  
-  
-  output$summary2 <- renderTable({
+        # summary of unit
     
-    req(plots_clickDF$summary2, input$units)
+    summaryDF <- summaryfunction(df[df[input$grouping] == unit_clicked,  'util_bill'][['util_bill']])
+    summaryDF <- gather(summaryDF)
+    colnames(summaryDF)[names(summaryDF) == 'value'] <- unit_clicked
+    colnames(summaryDF)[names(summaryDF) == 'key'] <- 'All selected months'
     
-    if (!is.na(plots_clickDF$summary2)){
-      summary2 <- summaryfunction(plots_clickDF$summary2$util_bill) # summaryfunction converts summary to dataframe
-      summary2[input$grouping] <- plots_clickDF$unit
-      
-      summary2
+        # summary of all selected units
     
-    }
+    summaryDF2 <- summaryfunction(df$util_bill)
+    summaryDF2 <- gather(summaryDF2)
+    summaryDF2$key <- NULL
+    colnames(summaryDF2)[names(summaryDF2) == 'value'] <- 'All selected'
     
-  })
-  
-  output$summary3 <- renderTable({
+    plots_clickDF$summary <- bind_cols(summaryDF, summaryDF2)
     
-    req(plots_clickDF$summary3, input$units)
+    # for main datatable
     
-    summary3 <- summaryfunction(plots_clickDF$summary3$util_bill)
-    summary3['YEARMONTH'] <- plots_clickDF$YM
-    
-    summary3
+    all_unitsDF <- pass_df()
 
+    all_unitsDF <- all_unitsDF %>%
+      group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
+      summarise(min = round(min(util_bill), 2), 
+                max = round(max(util_bill), 2), 
+                avg = round(mean(util_bill), 2),
+                median = round(median(util_bill), 2),
+                t_bill_sum = round(sum(t_bill), 2),
+                t_inv_sum = round(sum(t_inv), 2),
+                count = n()) %>%
+      ungroup()
+    
+    plots_clickDF$main_dTable <- all_unitsDF
+    
+  })
+  
+  output$all_units_statsYM <- renderDataTable({
+    
+    df <- plots_clickDF$main_dTable
+    
+    df
+    
+  })
+  
+  output$main_summary <- renderTable({
+    
+    plots_clickDF$summary
+    
   })
   
   output$test1 <- renderPrint({
@@ -1602,6 +1659,10 @@ shinyServer(function(input, output, session) {
   #             - cislo pri boxplote: rast v % celkovej utilizacie oproti
   #                 minulemu mesiacu
   #             - download csv a grafu
+
+  #             - Main tab - tabulka s uplne vsetkymi units v ramci obdobia a hodnot utilizacie (priemer, median, count) podla mesiacov,
+  #             -         - druha tabulka s celkovo za vsetky zvolene mesiace
+
 
 # analyticka funkcionalita - rozne metriky na task, round?
   # 1 premenna - grafy, summary

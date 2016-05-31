@@ -206,9 +206,8 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
 
               fluidRow(
                 verbatimTextOutput('test'),
-                column(7, verbatimTextOutput('summary1')),
-                column(5, tableOutput('summary2'),
-                       tableOutput('summary3')),
+                column(8, dataTableOutput('all_units_statsYM')),
+                column(4, tableOutput('main_summary')),
                 dataTableOutput('utilization_users')
                 
               )
@@ -221,6 +220,8 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                uiOutput('inputs_plot'),
                
                verbatimTextOutput('test_inputs'),
+               
+               verbatimTextOutput('test_inputs2'),
                
                conditionalPanel(condition = "input.tabs_1 == 'Inputs' && input.input_chartType == '3d'",
                                 
