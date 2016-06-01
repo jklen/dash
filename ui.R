@@ -207,9 +207,8 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
               fluidRow(
                 verbatimTextOutput('test'),
                 column(8, dataTableOutput('all_units_statsYM')),
-                column(4, tableOutput('main_summary')),
-                dataTableOutput('utilization_users')
-                
+                column(4, tableOutput('main_summary'))
+
               )
       
                

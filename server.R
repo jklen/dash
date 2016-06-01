@@ -1155,7 +1155,7 @@ shinyServer(function(input, output, session) {
     
   })
   
-  plots_clickDF <- reactiveValues(summary = NULL, unit = NULL, YM = NULL, main_dTable = NULL)
+  plots_clickDF <- reactiveValues(summary = NULL, main_dTable = NULL)
 
   observeEvent(input$main_click, {
     
@@ -1198,18 +1198,30 @@ shinyServer(function(input, output, session) {
     
     all_unitsDF <- pass_df()
     all_unitsDF <- all_unitsDF[all_unitsDF$YEARMONTH == YM_clicked,] # filter out not clicked months
+    
+    helpDF <- all_unitsDF %>%
+      summarise(t_bill_sumAll = sum(t_bill),
+                t_inv_sumAll = sum(t_inv),
+                countAll = n())
 
     all_unitsDF <- all_unitsDF %>%
       group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
-                  summarise(min = round(min(util_bill), 2), 
-                            max = round(max(util_bill), 2), 
-                            avg = round(mean(util_bill), 2),
-                            median = round(median(util_bill), 2),
-                            t_bill_sum = round(sum(t_bill), 2),
-                            t_inv_sum = round(sum(t_inv), 2),
-                            count = n()) %>%
-                  ungroup()
+      summarise(median = round(median(util_bill), 2),
+                mean = round(mean(util_bill), 2),
+                t_bill_sum = round(sum(t_bill), 2),
+                t_inv_sum = round(sum(t_inv), 2),
+                count = n()) %>%
+      ungroup()
     
+    all_unitsDF$t_bill_sumP <- round(all_unitsDF$t_bill_sum/helpDF$t_bill_sumAll, 2)
+    all_unitsDF$t_inv_sumP <- round(all_unitsDF$t_inv_sum/helpDF$t_inv_sumAll, 2)
+    all_unitsDF$countP <- round(all_unitsDF$count/helpDF$countAll, 2)
+    
+    # columns reorder
+    
+    all_unitsDF <- all_unitsDF[, c(input$grouping, 'median', 'mean', 't_bill_sum', 't_bill_sumP',
+                                   't_inv_sum', 't_inv_sumP', 'count', 'countP')]
+   
     plots_clickDF$main_dTable <- all_unitsDF
       
     
@@ -1244,17 +1256,29 @@ shinyServer(function(input, output, session) {
     # for main datatable
     
     all_unitsDF <- pass_df()
+    
+    helpDF <- all_unitsDF %>%
+      summarise(t_bill_sumAll = sum(t_bill),
+                t_inv_sumAll = sum(t_inv),
+                countAll = n())
 
     all_unitsDF <- all_unitsDF %>%
       group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
-      summarise(min = round(min(util_bill), 2), 
-                max = round(max(util_bill), 2), 
-                avg = round(mean(util_bill), 2),
-                median = round(median(util_bill), 2),
+      summarise(median = round(median(util_bill), 2),
+                mean = round(mean(util_bill), 2),
                 t_bill_sum = round(sum(t_bill), 2),
                 t_inv_sum = round(sum(t_inv), 2),
                 count = n()) %>%
       ungroup()
+    
+    all_unitsDF$t_bill_sumP <- round(all_unitsDF$t_bill_sum/helpDF$t_bill_sumAll, 2)
+    all_unitsDF$t_inv_sumP <- round(all_unitsDF$t_inv_sum/helpDF$t_inv_sumAll, 2)
+    all_unitsDF$countP <- round(all_unitsDF$count/helpDF$countAll, 2)
+    
+    # columns reorder
+    
+    all_unitsDF <- all_unitsDF[, c(input$grouping, 'median', 'mean', 't_bill_sum', 't_bill_sumP',
+                                   't_inv_sum', 't_inv_sumP', 'count', 'countP')]
     
     plots_clickDF$main_dTable <- all_unitsDF
     
@@ -1262,13 +1286,35 @@ shinyServer(function(input, output, session) {
   
   output$all_units_statsYM <- renderDataTable({
     
+    req(input$units, plots_clickDF$main_dTable)
+    
     df <- plots_clickDF$main_dTable
     
-    df
+    datatable(df, extensions = 'FixedColumns',
+              options = list(
+                dom = 'lftip',
+                scrollX = TRUE,
+                fixedColumns = list(leftColumns = 2),
+                pageLength = 10)
+    ) %>%
+      formatPercentage(c('t_bill_sumP', 't_inv_sumP', 'countP')) %>%
+      formatStyle('t_bill_sumP',
+                  background = styleColorBar(df$t_bill_sumP, 'lightblue')) %>%
+      formatStyle('t_inv_sumP',
+                  background = styleColorBar(df$t_inv_sumP, 'lightblue')) %>%
+      formatStyle('countP',
+                  background = styleColorBar(df$countP, 'lightblue')) %>%
+      formatStyle('mean', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue'))) %>%
+      formatStyle('median', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue')))
+                  
+    
+    #df
     
   })
   
   output$main_summary <- renderTable({
+    
+    req(input$units, plots_clickDF$summary)
     
     plots_clickDF$summary
     
@@ -1305,9 +1351,17 @@ shinyServer(function(input, output, session) {
     
     if (!is.null(input$inputs_brush) & !is.null(input$units)){
     
-      renderDT <- DT::datatable(df) %>%
+      renderDT <- DT::datatable(df,
+                                extensions = c('Buttons', 'FixedHeader'),
+                                options = list(dom = 'Blftip',
+                                               pageLength = 25,
+                                               fixedHeader = TRUE,
+                                               buttons = list(list(extend = 'collection',
+                                                              buttons = c('csv', 'excel', 'pdf'),
+                                                              text = 'Download')))) %>%
         formatStyle('util_bill', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue'))) %>%
-        formatStyle('t_bill', background = styleColorBar(df$t_bill, 'steelblue'))
+        formatStyle('t_bill', background = styleColorBar(df$t_bill, 'lightblue')) %>%
+        formatStyle('t_inv', background = styleColorBar(df$t_bill, 'lightblue'))
       
       renderDT
       
