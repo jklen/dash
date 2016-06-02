@@ -205,9 +205,8 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
               ),
 
               fluidRow(
-                verbatimTextOutput('test'),
-                column(8, dataTableOutput('all_units_statsYM')),
-                column(4, tableOutput('main_summary'))
+                #verbatimTextOutput('test'),
+                DT::dataTableOutput('all_units_statsYM')
 
               )
       
@@ -280,7 +279,7 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                ),
                
                tableOutput('test_hov'),
-               DT:: dataTableOutput('selected_table'),
+               DT::dataTableOutput('selected_table'),
                verbatimTextOutput('test1')
                
       ),

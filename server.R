@@ -1155,7 +1155,7 @@ shinyServer(function(input, output, session) {
     
   })
   
-  plots_clickDF <- reactiveValues(summary = NULL, main_dTable = NULL)
+  plots_clickDF <- reactiveValues(main_dTable = NULL, clicked_unit = NULL, clicked_YM = NULL)
 
   observeEvent(input$main_click, {
     
@@ -1163,6 +1163,8 @@ shinyServer(function(input, output, session) {
     
     YM_levels <- levels(as.factor(df$YEARMONTH))
     YM_clicked <- YM_levels[round(input$main_click$x)]
+    
+    plots_clickDF$clicked_YM <- YM_clicked
     
     unit_levelsYM <- levels(as.factor(df[df$YEARMONTH == YM_clicked, input$grouping][[input$grouping]]))
     
@@ -1176,23 +1178,7 @@ shinyServer(function(input, output, session) {
     
     clicked_unit <- unit_levelsYM[unit_YM_position]
     
-    # for main summary
-    
-        # summary of unit in YM
-    
-    summaryDF <- summaryfunction(df[df['YEARMONTH'] == YM_clicked & df[input$grouping] == clicked_unit,  'util_bill'][['util_bill']])
-    summaryDF <- gather(summaryDF)
-    colnames(summaryDF)[names(summaryDF) == 'value'] <- clicked_unit
-    colnames(summaryDF)[names(summaryDF) == 'key'] <- YM_clicked
-
-        # summary of all selected units in YM
-    
-    summaryDF2 <- summaryfunction(df[df['YEARMONTH'] == YM_clicked,  'util_bill'][['util_bill']])
-    summaryDF2 <- gather(summaryDF2)
-    summaryDF2$key <- NULL
-    colnames(summaryDF2)[names(summaryDF2) == 'value'] <- 'All selected'
-
-    plots_clickDF$summary <- bind_cols(summaryDF, summaryDF2)
+    plots_clickDF$clicked_unit <- clicked_unit
     
     # for main datatable
     
@@ -1235,23 +1221,8 @@ shinyServer(function(input, output, session) {
     unit_levels <- levels(as.factor(df[input$grouping][[input$grouping]]))
     unit_clicked <- unit_levels[round(input$marginal2_click$x)]
     
-    # for main summary
-    
-        # summary of unit
-    
-    summaryDF <- summaryfunction(df[df[input$grouping] == unit_clicked,  'util_bill'][['util_bill']])
-    summaryDF <- gather(summaryDF)
-    colnames(summaryDF)[names(summaryDF) == 'value'] <- unit_clicked
-    colnames(summaryDF)[names(summaryDF) == 'key'] <- 'All selected months'
-    
-        # summary of all selected units
-    
-    summaryDF2 <- summaryfunction(df$util_bill)
-    summaryDF2 <- gather(summaryDF2)
-    summaryDF2$key <- NULL
-    colnames(summaryDF2)[names(summaryDF2) == 'value'] <- 'All selected'
-    
-    plots_clickDF$summary <- bind_cols(summaryDF, summaryDF2)
+    plots_clickDF$clicked_unit <- unit_clicked
+    plots_clickDF$clicked_YM <- 'All months'
     
     # for main datatable
     
@@ -1284,19 +1255,21 @@ shinyServer(function(input, output, session) {
     
   })
   
-  output$all_units_statsYM <- renderDataTable({
+  output$all_units_statsYM <- DT::renderDataTable({
     
     req(input$units, plots_clickDF$main_dTable)
     
     df <- plots_clickDF$main_dTable
     
-    datatable(df, extensions = 'FixedColumns',
-              options = list(
-                dom = 'lftip',
-                scrollX = TRUE,
-                fixedColumns = list(leftColumns = 2),
-                pageLength = 10)
-    ) %>%
+    DT::datatable(df, extensions = c('Scroller', 'ColReorder', 'FixedColumns'),
+                  caption = paste(plots_clickDF$clicked_unit, ', ', plots_clickDF$clicked_YM),
+                  options = list(
+                    #deferRender = TRUE,
+                    scrollY = 200,
+                    scroller = TRUE,
+                    colReorder = TRUE,
+                    scrollX = TRUE,
+                    fixedColumns = list(leftColumns = 2))) %>%
       formatPercentage(c('t_bill_sumP', 't_inv_sumP', 'countP')) %>%
       formatStyle('t_bill_sumP',
                   background = styleColorBar(df$t_bill_sumP, 'lightblue')) %>%
@@ -1312,13 +1285,13 @@ shinyServer(function(input, output, session) {
     
   })
   
-  output$main_summary <- renderTable({
-    
-    req(input$units, plots_clickDF$summary)
-    
-    plots_clickDF$summary
-    
-  })
+  # output$main_summary <- renderTable({
+  #   
+  #   req(input$units, plots_clickDF$summary)
+  #   
+  #   plots_clickDF$summary
+  #   
+  # })
   
   output$test1 <- renderPrint({
     
@@ -1348,15 +1321,22 @@ shinyServer(function(input, output, session) {
   output$selected_table <- DT::renderDataTable({
     
     df <- brushed$df
-    
+    df[input$grouping] <- as.factor(df[[input$grouping]])
+    df$USER_NAME <- as.factor(df$USER_NAME)
+    df$COUNTRY_NAME <- as.factor(df$COUNTRY_NAME)
+
     if (!is.null(input$inputs_brush) & !is.null(input$units)){
     
       renderDT <- DT::datatable(df,
-                                extensions = c('Buttons', 'FixedHeader'),
+                                caption = 'Users monthly utilization',
+                                filter = 'top',
+                                extensions = c('Buttons', 'FixedHeader', 'ColReorder', 'FixedColumns', 'Responsive'),
                                 options = list(dom = 'Blftip',
                                                pageLength = 25,
                                                fixedHeader = TRUE,
-                                               buttons = list(list(extend = 'collection',
+                                               colReorder = TRUE,
+                                               fixedColumns = list(leftColumns = 2),
+                                               buttons = list('copy', 'print', list(extend = 'collection',
                                                               buttons = c('csv', 'excel', 'pdf'),
                                                               text = 'Download')))) %>%
         formatStyle('util_bill', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue'))) %>%
@@ -1674,7 +1654,16 @@ shinyServer(function(input, output, session) {
   output$usersCountry_table <- DT::renderDataTable({
     
     dat <- dfToPlot$df
-    dat[dat$COUNTRY_NAME == clickedCountry(),]
+    d <- dat[dat$COUNTRY_NAME == clickedCountry(),]
+    
+    DT::datatable(d,
+                  extensions = c('ColReorder', 'Scroller', 'Responsive'),
+                  options = list(
+                    deferRender = TRUE,
+                    colReorder = TRUE,
+                    scrollY = 500,
+                    scroller = TRUE)) %>%
+      formatStyle('util_bill', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue')))
     
   })
   
