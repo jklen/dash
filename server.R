@@ -1657,7 +1657,7 @@ shinyServer(function(input, output, session) {
     d <- dat[dat$COUNTRY_NAME == clickedCountry(),]
     
     DT::datatable(d,
-                  extensions = c('ColReorder', 'Scroller', 'Responsive'),
+                  extensions = c('ColReorder', 'Scroller'),
                   options = list(
                     deferRender = TRUE,
                     colReorder = TRUE,
