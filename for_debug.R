@@ -121,6 +121,7 @@ lnd[SpatialPoints(coords = matrix(c(19.50766, 48.72671), ncol = 2), proj4string 
 # http://stackoverflow.com/questions/7466023/how-to-give-color-to-each-class-in-scatter-plot-in-r - colors, last answer
 # http://bioinfo.umassmed.edu/bootstrappers/bootstrappers-courses/courses/rCourse/resources/helpfulGuides/Rcolorstyle.pdf - guide to using colors
 # http://research.stowers-institute.org/efg/Report/UsingColorInR.pdf - colors in R basics presentation
+# http://stackoverflow.com/questions/10210450/ggplot2-set-alpha-0-for-certain-points-depending-on-fill-value
 
 dataMap <- reactiveValues(df = NULL)
 

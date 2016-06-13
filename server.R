@@ -746,8 +746,30 @@ shinyServer(function(input, output, session) {
         
       } else {
         
-        plotlyOutput('utilization_inputs_box',
-                   height = '1200px')
+        if (input$input_chartType == 'box'){
+        
+          plotlyOutput('utilization_inputs_box',
+                     height = '1200px')
+          
+        } else {
+          
+          if (input$input_chartType == 'densityFacet'){
+            
+            plotOutput('utilization_inputs_density',
+                       height = '1200px')
+            
+          } else {
+            
+            if (input$input_chartType == 'densityAll'){
+              
+              plotOutput('utilization_inputs_densityAll',
+                         height = '750px')
+              
+            }
+            
+          }
+          
+        }
         
       }
       
@@ -829,6 +851,101 @@ shinyServer(function(input, output, session) {
       
     plot_util_rel
       
+    
+  })
+  
+  output$utilization_inputs_density <- renderPlot({
+    
+    req(dfToPlot$df, input$units, input$util_inputs)
+    
+    df <- dfToPlot$df
+    
+    
+    
+    if (input$density_plotType == 'poly'){
+    
+      plot_dens <- ggplot(aes_string(x = input$util_inputs, y = 'util_bill'), data = df) +
+        stat_density2d(aes(fill = ..level..), geom = 'polygon') +
+        scale_fill_gradientn(colours = colorRampPalette(c('blue', 'yellow',"orange", "red", 'darkred'))(100)) +
+        theme(panel.background = element_rect(fill =NA),
+          panel.grid.major = element_line(colour = '#e5e5e5'),
+          axis.line = element_line(colour = '#BDBDBD'),
+          strip.background = element_rect(fill = '#e5e5ff'),
+          strip.text = element_text(face = 'bold'),
+          legend.position = 'none')
+      
+    } else {
+      
+      plot_dens <- ggplot(aes_string(x = input$util_inputs, y = 'util_bill'), data = df) +
+        stat_density2d(aes(fill = ..density.., alpha=ifelse(..density.. < 1e-5, 0, 1)), geom = 'tile', contour = F) +
+        scale_fill_gradientn(colours = colorRampPalette(c('white','blue', 'yellow',"orange", "red", 'darkred'))(100)) +
+        theme(panel.background = element_rect(fill =NA),
+              panel.grid.major = element_line(colour = '#e5e5e5'),
+              axis.line = element_line(colour = '#BDBDBD'),
+              strip.background = element_rect(fill = '#e5e5ff'),
+              strip.text = element_text(face = 'bold'),
+              legend.position = 'none')
+      
+      
+    }
+    
+    if (input$include_summary == T){
+      
+      plot_dens <- plot_dens +
+        facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)), margins = T)
+      
+    } else {
+      
+      plot_dens <- plot_dens +
+        facet_grid(as.formula(paste('YEARMONTH', ' ~ ', input$grouping)))
+      
+    }
+    
+    plot_dens
+    
+  })
+  
+  output$utilization_inputs_densityAll <- renderPlot({
+    
+    req(dfToPlot$df, input$units, input$util_inputs_dens)
+    
+    df <- dfToPlot$df
+   
+    if (input$density_plotType == 'poly'){
+      
+      # polygon
+    
+      plot_densAll <- ggplot(aes_string(x = input$util_inputs_dens, y = 'util_bill'), data = df) +
+        stat_density2d(aes(fill = ..level..), geom = 'polygon') +
+        scale_fill_gradientn(colours = colorRampPalette(c('blue', 'yellow',"orange", "red", 'darkred'))(100)) +
+        theme(panel.background = element_rect(fill =NA),
+              panel.grid.major = element_line(colour = '#e5e5e5'),
+              axis.line = element_line(colour = '#BDBDBD'),
+              strip.background = element_rect(fill = '#e5e5ff'),
+              strip.text = element_text(face = 'bold'),
+              legend.position = 'none')
+    
+    } else {
+      
+      if (input$density_plotType == 'heatmap'){
+        
+        # heatmap
+        
+        plot_densAll <- ggplot(aes_string(x = input$util_inputs_dens, y = 'util_bill'), data = df) +
+          stat_density2d(aes(fill = ..density.., alpha=ifelse(..density.. < 1e-5, 0, 1)), geom = 'tile', contour = F) +
+          scale_fill_gradientn(colours = colorRampPalette(c('white','blue', 'yellow',"orange", "red", 'darkred'))(100)) +
+          theme(panel.background = element_rect(fill =NA),
+                panel.grid.major = element_line(colour = '#e5e5e5'),
+                axis.line = element_line(colour = '#BDBDBD'),
+                strip.background = element_rect(fill = '#e5e5ff'),
+                strip.text = element_text(face = 'bold'),
+                legend.position = 'none')
+        
+      }
+      
+    }
+      
+    plot_densAll
     
   })
   
@@ -1260,6 +1377,7 @@ shinyServer(function(input, output, session) {
     req(input$units, plots_clickDF$main_dTable)
     
     df <- plots_clickDF$main_dTable
+    h = 'China'
     
     DT::datatable(df, extensions = c('Scroller', 'ColReorder', 'FixedColumns'),
                   caption = paste(plots_clickDF$clicked_unit, ', ', plots_clickDF$clicked_YM),
@@ -1269,7 +1387,9 @@ shinyServer(function(input, output, session) {
                     scroller = TRUE,
                     colReorder = TRUE,
                     scrollX = TRUE,
-                    fixedColumns = list(leftColumns = 2))) %>%
+                    fixedColumns = list(leftColumns = 2),
+                    rowCallback = DT::JS('function(row, data) {if (data[1] == h)$("td", row).css("background", "orange")
+                                    }'))) %>%
       formatPercentage(c('t_bill_sumP', 't_inv_sumP', 'countP')) %>%
       formatStyle('t_bill_sumP',
                   background = styleColorBar(df$t_bill_sumP, 'lightblue')) %>%
@@ -1535,7 +1655,7 @@ shinyServer(function(input, output, session) {
       datCircles$name <- dat$name
       datCircles$measure_circle <-  dat$measure_circle
       datCircles$measure_color <-  dat$measure_color
-      datCircles$radius <- (dat$radius/(abs(datCircles$y)^(2/5))) * 10 # stupid, need adjust circles somehow or reproject somehow, plotted radius differs when changing lat
+      datCircles$radius <- dat$radius #(dat$radius/(abs(datCircles$y)^(2/5))) * 10 # stupid, need adjust circles somehow or reproject somehow, plotted radius differs when changing lat
       datCircles <- datCircles[!is.na(datCircles$measure_circle),]
       
       datCircles <- datCircles %>%

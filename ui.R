@@ -97,14 +97,27 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                      
                      selectInput(inputId = 'input_chartType',
                                  choices = c('Faceted 2d scatter plot' = '2d',
+                                             'Faceted 2d density plot' = 'densityFacet',
                                              'Faceted boxplot of binned x variable' = 'box',
+                                             '2d density plot with all selected data' = 'densityAll',
                                              '3d scatter plot with all selected data' = '3d'),
                                  selected = '2d',
                                  label = 'Chart type',
                                  multiple = F)
     ),
     
-    conditionalPanel(condition = "input.tabs_1 == 'Inputs' && (input.input_chartType == '2d' || input.input_chartType == 'box')",
+    conditionalPanel(condition = "input.input_chartType == 'densityAll' || input.input_chartType == 'densityFacet'",
+                     
+                     selectInput('density_plotType',
+                                 choices = c('Polygon' = 'poly',
+                                             'Heatmap' = 'heatmap'),
+                                 selected = 'poly',
+                                 label = NULL,
+                                 multiple = F)
+    ),
+    
+    conditionalPanel(condition = "input.tabs_1 == 'Inputs' && (input.input_chartType == '2d' || input.input_chartType == 'box' ||
+                     input.input_chartType == 'densityFacet')",
                      
                      checkboxInput('include_summary',
                                    label = 'Include summary rows and columns',
@@ -119,6 +132,17 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                  selected = 't_bill')
                      
                      
+    ),
+    
+    conditionalPanel(condition = "input.tabs_1 == 'Inputs' && input.input_chartType == 'densityAll'",
+                     
+                     selectInput(inputId = 'util_inputs_dens',
+                                 choices = c('Tracked billable' = 't_bill',
+                                             'Expected billable' = 'exp_bill',
+                                             'Tracked investment' = 't_inv'),
+                                 label = 'X variable',
+                                 multiple = F,
+                                 selected = 't_bill')
     ),
     
     conditionalPanel(condition = "input.tabs_1 == 'Inputs' && input.input_chartType == 'box'",
