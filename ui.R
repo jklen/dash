@@ -14,7 +14,7 @@ library(threejs)
 library(RColorBrewer)
 library(colorspace)
 
-shinyUI(fluidPage(theme = shinytheme("Spacelab"),
+shinyUI(fluidPage(theme = shinytheme("Cerulean"),
                   
                   titlePanel("Utilization"),
                   
@@ -50,7 +50,44 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                                                          'Department' = 'DEPT_NAME')
                                                 ),
                                                 
-                                                div(style = 'height: 220px; overflow:scroll', uiOutput('reac_units'))
+                                                uiOutput('reac_units')
+                               ),
+                               
+                               conditionalPanel(condition = "input.tabs_1 == 'Group influence'",
+                                                
+                                                selectInput('influence_choice',
+                                                            choices = c('% of values' = 'values',
+                                                                        '% as share' = 'share',
+                                                                        'Whole category % influence' = 'whole',
+                                                                        'Category split % influence' = 'split'),
+                                                            multiple = F,
+                                                            label = 'Measure',
+                                                            selected = '1'),
+                                                
+                                                conditionalPanel(condition = "input.influence_choice == 'whole' ||
+                                                                 input.influence_choice == 'split'",
+                                                                 
+                                                                 uiOutput('levelUI')
+                                                ),
+                                                
+                                                selectInput(inputId = 'influenceOpts',
+                                                            label = 'Statistic',
+                                                            choices = c('Mean' = 'mean',
+                                                                        'Quantile' = 'quant'),
+                                                            multiple = F,
+                                                            selected = 'mean'
+                                                ),
+                                                
+                                                conditionalPanel(condition = "input.influenceOpts == 'quant'",
+                                                                 
+                                                                 sliderInput(inputId = 'influenceQuantile',
+                                                                             label = NULL,
+                                                                             min = 0,
+                                                                             max = 1,
+                                                                             value = 0.5,
+                                                                             step = 0.05
+                                                                 )
+                                                )
                                ),
                                
                                conditionalPanel(condition = "input.tabs_1 == 'Users - all'",
@@ -264,6 +301,18 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                                  
                                         ),
                                         
+                                        tabPanel('Group influence',
+                                                 
+                                                 fluidRow(column(9, plotOutput('influence_plotMain',
+                                                                               click = clickOpts('influence_mainClick'))),
+                                                          column(3, plotOutput('influence_plotMargin',
+                                                                               click = clickOpts('influence_marginalClick')))),
+                                                 fluidRow(DT::dataTableOutput('influence_DT')),
+                                                 
+                                                 verbatimTextOutput('test_influence')
+                                        
+                                        ),
+                                        
                                         tabPanel('Inputs', 
                                                  
                                                  uiOutput('inputs_plot'),
@@ -335,11 +384,6 @@ shinyUI(fluidPage(theme = shinytheme("Spacelab"),
                                                  
                                         ),
                                         
-                                        tabPanel('Group influence',
-                                                 
-                                                 plotOutput('utilization_compare')
-                                                 
-                                        ),
                                         
                                         tabPanel('Users - all',
                                                  

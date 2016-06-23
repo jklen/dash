@@ -55,6 +55,23 @@ shinyServer(function(input, output, session) {
     
   })
   
+  # rendering listbox for possible levels
+  
+  output$levelUI <- renderUI({
+    
+    l <- c('Global' = 'global',
+           'Geo' = 'GEO_NAME',
+           'Organization' = 'ORG_NAME',
+           'Department' = 'DEPT_NAME')
+    
+    l <- l[1:match(input$grouping, l) - 1]
+    
+    selectizeInput('level',
+                   label = 'Level',
+                   choices = l,
+                   multiple = F)
+    
+  })
   
   # rendering listbox of possible color variables in Inputs tab
   
@@ -374,6 +391,98 @@ shinyServer(function(input, output, session) {
       
     )
     #selected_brush
+    
+  })
+  
+  influenceDF <- reactiveValues(mainPlot = NULL, testdf = NULL)
+  output$test_influence <- renderPrint({
+    t <- influenceDF$testdf
+    
+    t
+  })
+  
+  observeEvent(c(input$units, input$influenceOpts, input$influence_choice, input$influenceQuantile), {
+    
+    req(dfToPlot$df, input$units)
+    
+    df <- dfToPlot$df
+    
+    toGroup <- c(input$grouping, 'YEARMONTH')
+    
+    if (input$influence_choice == 'values'){
+      
+      if( input$influenceOpts == 'mean'){
+      
+        dfYM <- df %>%
+          group_by(YEARMONTH) %>%
+          summarise(statYM = mean(util_bill)) %>%
+          ungroup()
+        
+      } else {
+        
+        if (input$influenceOpts == 'quant'){
+          
+          dfYM <- df %>%
+            group_by(YEARMONTH) %>%
+            summarise(statYM = quantile(util_bill, probs = input$influenceQuantile, na.rm = T)) %>%
+            ungroup()
+          
+          influenceDF$testdf <- dfYM
+          
+        }
+        
+      }
+      
+      df1 <- df %>%
+        inner_join(dfYM, by = 'YEARMONTH') %>%
+        filter(util_bill < statYM) %>%
+        group_by_(.dots = lapply(toGroup, as.symbol)) %>%
+        summarise(count_under = n()) %>%
+        ungroup()
+      
+      
+      
+      # df1 <- df %>%
+      #   filter(util_bill <= mean(df$util_bill)) %>%
+      #   group_by_(.dots = lapply(toGroup, as.symbol)) %>%
+      #   summarise(count_under = n()) %>%
+      #   ungroup()
+      
+      df2 <- df %>%
+        group_by_(.dots = lapply(toGroup, as.symbol)) %>%
+        summarise(count_all = n()) %>%
+        ungroup()
+      
+      dfToMain <- df1 %>%
+        inner_join(df2, by = toGroup) %>%
+        mutate(count_underEqP = count_under/count_all) %>%
+        mutate(count_aboveP = 1 - count_underEqP)
+      
+      dfToMain$count_underEqP <- dfToMain$count_underEqP * (-1)
+      
+      influenceDF$mainPlot <- dfToMain
+      
+    }
+    
+  })
+  
+  output$influence_plotMain <- renderPlot({
+    
+    req(influenceDF$mainPlot, input$units)
+    
+    df <- influenceDF$mainPlot
+    
+    toPlot <- ggplot(aes_string(x = 'YEARMONTH', fill = input$grouping), data = df) +
+      geom_bar(aes(y = count_underEqP), stat = 'identity', position = 'dodge', alpha = 0.5) +
+      geom_bar(aes(y = count_aboveP), stat = 'identity', position = 'dodge', alpha = 0.5) +
+      geom_hline(yintercept = 0, linetype = 2, size = 2, color = 'red') +
+      #ylim(c(-1, 1)) +
+      theme(panel.background = element_rect(fill =NA),
+            panel.grid.major = element_line(colour = '#e5e5e5'),
+            axis.line = element_line(colour = '#BDBDBD'),
+            axis.title.y = element_blank())
+
+    toPlot
     
   })
   
@@ -1907,12 +2016,24 @@ shinyServer(function(input, output, session) {
 #       - unit filter do observera -> leafletproxy na prekreslovanie
 
 # 2.
-# globalny priemer a median, pocetnosti
+# globalny priemer a median, pocetnosti OK
 # moznost porovnat zvolene grafy
 # plotly boxplot, spravit cut quantilov pri values
 # moznost zmeny filtra datumu a hodnoty utilizacie bez toho, aby mi to vynulovalo
 # pri grafoch moznost xlim a ylim
 # nulovat selectnute riadky v tabulke select tab https://yihui.shinyapps.io/DT-proxy/
+
+# GROUP INFLUENCE
+# m1. user count
+# m2. perc. podiel (user count) kategorie zo zvolenych, zo vsetkych - mozno?
+# m3. kolko percent hodnot kategorie je pod/nad hodnotou zvolenej statistiky (zo zvolenych napr. celkovy priemer zvolenych, aj vsetkych kategorii napr. celkovy priemer vsetkych)
+# m4. aky je perc. podiel hodnot kategorie pod hodnotou zvolenej statistiky (zo zvolenych kategorii pod, aj vsetkych pod) napr. hodnoty grupy1 pod celkovym medianom zvolenych grup tvoria 40% vsetkych zvolenych hodnot pod celkovym medianom zvolenych grup
+# ---
+# m1. aky ma cela kategoria percentualny vplyv na pohyb zvolenej statistiky zvoleneho grupovania (aj toho co je zvolene)
+# m2. aky maju len hodnoty kategorie pod zvolenou statistikou zvoleneho grupovania percentualny vplyv na jej pohyb (aj toho co je zvolene)
+# pod/nad - dat moznost?
+
+# 
 
 # prezentacia
 

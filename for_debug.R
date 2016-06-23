@@ -125,281 +125,31 @@ lnd[SpatialPoints(coords = matrix(c(19.50766, 48.72671), ncol = 2), proj4string 
 # http://stackoverflow.com/questions/5577727/is-there-an-r-function-for-finding-the-index-of-an-element-in-a-vector
 # https://yihui.shinyapps.io/DT-proxy/ datatable proxy, nullify selected rows/columns
 
-dataMap <- reactiveValues(df = NULL)
+#### data read for predictive modeling presentation
 
-observe({
-  
-  req(input$map_variable, input$map_statistic, input$map_quant, input$circle_variable)
-  
-  df <- dfToPlot$df
-  
-  if (!is.null(input$units) & input$tabs_1 == 'Map' & !is.null(df)){
-    
-    # polygons
-    
-    df <- df[, c('COUNTRY_NAME', 'YEARMONTH', input$map_variable)]
-    
-    if (input$map_statistic == 'mean'){
-      
-      dfToJoin <- df %>%
-        group_by(COUNTRY_NAME) %>%
-        summarise_(measure_color = interp(~mean(var, na.rm = T), var = as.name(input$map_variable))) %>%
-        ungroup()
-      
-    } else {
-      
-      if (input$map_statistic == 'percentile'){
-        
-        dfToJoin <- df %>%
-          group_by(COUNTRY_NAME) %>%
-          summarise_(measure_color = interp(~quantile(var, probs = pr, na.rm = T), var = as.name(input$map_variable), pr = input$map_quant)) %>%
-          ungroup()
-        
-        
-      }
-      
-    }
-    
-    # circles
-    
-    if (input$circle_variable != 'YM_meanCount'){
-      
-      df <- dfToPlot$df[, c('COUNTRY_NAME', 'YEARMONTH', input$circle_variable)]
-      
-      if (input$circle_statistic == 'mean'){
-        
-        dfToJoin2 <- df %>%
-          group_by(COUNTRY_NAME) %>%
-          summarise_(measure_circle = interp(~mean(var, na.rm = T), var = as.name(input$circle_variable))) %>%
-          ungroup()
-        
-      } else {
-        
-        if (input$circle_statistic == 'percentile'){
-          
-          dfToJoin2 <- df %>%
-            group_by(COUNTRY_NAME) %>%
-            summarise_(measure_circle = interp(~quantile(var, probs = pr, na.rm = T), var = as.name(input$circle_variable), pr = input$circle_quant)) %>%
-            ungroup()
-          
-        }
-        
-      }
-      
-    } else {
-      
-      # monthly mean of user count in country
-      
-      df <- dfToPlot$df[, c('COUNTRY_NAME', 'YEARMONTH')]
-      
-      dfToJoin2 <- df %>%
-        group_by(COUNTRY_NAME) %>%
-        summarise(measure_circle = n()/length(unique(df$YEARMONTH))) %>%
-        ungroup()
-      
-    }
-    
-    dfToJoin2 <- dfToJoin2 %>%
-      mutate(radius = (1000000/max(measure_circle)) * measure_circle)
-    
-    dfToJoin <- dfToJoin %>%
-      full_join(dfToJoin2) 
-    
-    dfToJoin <- rename(dfToJoin, name = COUNTRY_NAME)
-    
-    # cat(file=stderr(), "measure CAN", dfToJoin[dfToJoin$name == 'Canada','measure_circle'][['measure_circle']]) 
-    # cat(file=stderr(), "radius CAN", dfToJoin[dfToJoin$name == 'Canada','radius'][['radius']])
-    # cat(file=stderr(), "variable CAN", input$circle_variable)
-    
-    lnd@data <- lnd@data %>% left_join(dfToJoin)
-    
-    dataMap$df <- lnd
-    
-  } 
-  
-})
 
-# add polygons
+q2 <- read.csv('C:\\Users\\IBM_ADMIN\\Desktop\\R\\DATAFILES\\q2.csv')
+q2 <- q2 %>%
+  select(week_start_monday, tracked_q2_roleWB, tracked_q2_roleWB_predicted) %>%
+  filter(week_start_monday != '2016-06-12') %>%
+  rename(TimeLabel_EVENT = week_start_monday, forecasted = tracked_q2_roleWB_predicted, measured = tracked_q2_roleWB)
 
-observe({
-  
-  #req(input$map_variable, input$map_statistic, input$map_quant)
-  
-  dat <- dataMap$df
-  
-  proxy <- leafletProxy('countries')
-  
-  isolate(
-    
-    if (!is.null(dat) & input$tabs_1 == 'Map'){
-      
-      toShow <- proxy %>%
-        clearShapes() %>%
-        addPolygons(data = dat, 
-                    group = 'poly',
-                    color = ~colorpal()(measure_color), 
-                    stroke = F, smoothFactor = 0.2, 
-                    fillOpacity = 0.4)
-      
-      
-      toShow
-    } else {
-      #proxy %>% clearShapes()
-    }
-    
-  )
-  
-  #toShow
-  
-})
+q2$geo_queue_model <- 'Q2'
 
-dfcirc <- reactiveValues(df = NULL)
+handshake_input <- read.csv('C:\\Users\\IBM_ADMIN\\Desktop\\R\\DATAFILES\\handshake_input.csv')
+handshake_input <- handshake_input %>%
+  select(TimeLabel_EVENT, geo_queue_model, QA_WPL_step_tracked_next_week_forecast, QA_WPL_step_tracked) %>%
+  rename(forecasted = QA_WPL_step_tracked_next_week_forecast, measured = QA_WPL_step_tracked)
 
-# add circles
+handshake_input$geo_queue_model <- as.character(handshake_input$geo_queue_model)
 
-observe({
-  
-  req(dataMap$df)
-  
-  d <- dataMap$df
-  
-  #proxy <- leafletProxy('countries')
-  
-  if (!is.null(d) & input$tabs_1 == 'Map'){
-    
-    
-    datCircles <- as.data.frame(gCentroid(d, byid = T))
-    datCircles$measure_circle <-  d$measure_circle
-    datCircles$radius <- d$radius
-    datCircles <- datCircles[!is.na(datCircles$measure_circle),]
-    #datCircles <- datCircles[!is.infinite(datCircles$measure_circle),]
-    #datCircles$rad <- (2000000/max(datCircles$measure_circle)) * datCircles$measure_circle
-    
-    datCircles <- datCircles %>%
-      arrange(desc(radius))
-    
-    dfcirc$df <- datCircles
-    
-    #cat(file=stderr(), "MEAN measure ", mean(datCircles[datCircles$name == 'Canada','measure_circle'][['measure_circle']], na.rm = T)) 
-    
-    proxy <- leafletProxy('countries')
-    
-    toShow <- proxy %>%
-      #clearShapes() %>%
-      addCircles(data = datCircles,
-                 group = 'circ',
-                 radius = ~radius,
-                 lng = ~x,
-                 lat = ~y,
-                 weight = 1,
-                 color = '#777777',
-                 fillColor = '#4c4cff',
-                 fillOpacity = 0.3,
-                 popup = ~paste(as.character(radius), ' / ', x, ' / ', y)) %>%
-      addCircles(data = as.data.frame(matrix(c(0,0, 500000), ncol = 3)),
-                 radius = ~V3,
-                 lng = ~V1,
-                 lat = ~V2,
-                 weight = 1) %>%
-      addCircles(data = as.data.frame(matrix(c(10,0, 1000000), ncol = 3)),
-                 radius = ~V3,
-                 lng = ~V1,
-                 lat = ~V2,
-                 weight = 1)
-    
-    
-    toShow
-    
-    
-    
-    
-    
-  }
-  
-})
+handshake_input <- handshake_input %>%
+  bind_rows(q2) %>%
+  filter(geo_queue_model %in% c('6-8-1', '6-8-2', '6-5-1', '6-1-1', '5-8-1', '5-5-2', '5-5-1',
+                                '5-2-3', '5-2-2', '5-2-1', '5-1-2', '5-1-1', '2-91-1', '2-2-2',
+                                '2-2-1', '1-2-1', 'Q2')) %>%
+  filter(TimeLabel_EVENT != '2016-06-12')
 
-colorpal <- reactive({
-  
-  df <- dataMap$df
-  
-  if (!is.null(df)){
-    
-    mes <- df@data$measure_color
-    
-    colorNumeric(palette = heat.colors(6), domain = mes)
-    
-  }
-  
-})
+handshake_input <- xts(x = handshake_input[,colnames(handshake_input) != 'TimeLabel_EVENT'], order.by = as.POSIXct(strptime(as.character(handshake_input$TimeLabel_EVENT), format = '%Y-%m-%d')))
 
-# add legend
-
-observe({
-  
-  df <- dataMap$df
-  
-  proxy <- leafletProxy('countries')
-  
-  if (!is.null(df) & input$tabs_1 == 'Map'){
-    
-    mes <- df@data$measure_color
-    
-    proxy %>% 
-      clearControls() %>%
-      addLegend(position = 'bottomleft',
-                pal = colorpal(),
-                values = mes)
-    
-  } else {
-    proxy %>% clearControls()
-  }
-  
-})
-
-output$countries <- renderLeaflet({
-  
-  #req(input$units)
-  
-  #isolate(
-  
-  if (input$tabs_1 == 'Map'){
-    
-    #pal <- colorpal()
-    
-    cmap <- leaflet() %>%
-      addTiles() %>%
-      addLayersControl(
-        #baseGroups = c("OSM (default)", "Toner", "Toner Lite"),
-        overlayGroups = c("poly", "circ"),
-        options = layersControlOptions(collapsed = FALSE),
-        position = 'bottomright'
-      )
-    
-    cmap
-    
-  }
-  
-  #)
-  
-})
-
-clickedCountry <- reactive({
-  
-  req(input$countries_shape_click)
-  
-  lat <- input$countries_shape_click$lat
-  lon <- input$countries_shape_click$lng
-  coo <- matrix(c(lon, lat), ncol = 2)
-  
-  ctr <- lnd[SpatialPoints(coords = coo, proj4string = CRS(proj4string(lnd))), ]@data$name
-  
-  ctr
-  
-})
-
-output$usersCountry_table <- DT::renderDataTable({
-  
-  dat <- dfToPlot$df
-  dat[dat$COUNTRY_NAME == clickedCountry(),]
-  
-})
+####
