@@ -2068,6 +2068,6 @@ shinyServer(function(input, output, session) {
 
 # 2 strucne o prediktivnom modelovani a procese jak to funguje
 # 2 nase vytvory
-# 2 potencial, napady,...
+# 2 potencial, napady,...dd
 
 # as
