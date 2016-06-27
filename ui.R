@@ -14,7 +14,7 @@ library(threejs)
 library(RColorBrewer)
 library(colorspace)
 
-shinyUI(fluidPage(theme = shinytheme("Cerulean"),
+shinyUI(fluidPage(theme = shinytheme("cerulean"),
                   
                   titlePanel("Utilization"),
                   

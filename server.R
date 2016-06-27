@@ -19,7 +19,7 @@ library(colorspace)
 
 # data load
 
-load('.Rdata')
+load('.RData')
 
 summaryfunction <- function (x){
   if( is.numeric(x)!=TRUE) {stop("Supplied X is not numeric")}
