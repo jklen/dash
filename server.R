@@ -19,7 +19,7 @@ library(colorspace)
 
 # data load
 
-load('.Rdata')
+load('.RData')
 
 summaryfunction <- function (x){
   if( is.numeric(x)!=TRUE) {stop("Supplied X is not numeric")}
@@ -394,7 +394,8 @@ shinyServer(function(input, output, session) {
     
   })
   
-  influenceDF <- reactiveValues(mainPlot = NULL, testdf = NULL)
+  influenceDF <- reactiveValues(mainPlot = NULL, margPlot = NULL, testdf = NULL)
+  
   output$test_influence <- renderPrint({
     t <- influenceDF$testdf
     
@@ -418,6 +419,13 @@ shinyServer(function(input, output, session) {
           summarise(statYM = mean(util_bill)) %>%
           ungroup()
         
+        dfMarg1 <- df %>%
+          mutate(stat = mean(util_bill)) %>%
+          filter(util_bill < stat) %>%
+          group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
+          summarise(count_under = n()) %>%
+          ungroup()
+        
       } else {
         
         if (input$influenceOpts == 'quant'){
@@ -425,6 +433,13 @@ shinyServer(function(input, output, session) {
           dfYM <- df %>%
             group_by(YEARMONTH) %>%
             summarise(statYM = quantile(util_bill, probs = input$influenceQuantile, na.rm = T)) %>%
+            ungroup()
+          
+          dfMarg1 <- df %>%
+            mutate(stat = quantile(util_bill, probs = input$influenceQuantile, na.rm = T)) %>%
+            filter(util_bill < stat) %>%
+            group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
+            summarise(count_under = n()) %>%
             ungroup()
           
           influenceDF$testdf <- dfYM
@@ -440,14 +455,6 @@ shinyServer(function(input, output, session) {
         summarise(count_under = n()) %>%
         ungroup()
       
-      
-      
-      # df1 <- df %>%
-      #   filter(util_bill <= mean(df$util_bill)) %>%
-      #   group_by_(.dots = lapply(toGroup, as.symbol)) %>%
-      #   summarise(count_under = n()) %>%
-      #   ungroup()
-      
       df2 <- df %>%
         group_by_(.dots = lapply(toGroup, as.symbol)) %>%
         summarise(count_all = n()) %>%
@@ -455,12 +462,24 @@ shinyServer(function(input, output, session) {
       
       dfToMain <- df1 %>%
         inner_join(df2, by = toGroup) %>%
-        mutate(count_underEqP = count_under/count_all) %>%
-        mutate(count_aboveP = 1 - count_underEqP)
+        mutate(count_underP = count_under/count_all) %>%
+        mutate(count_aboveP = 1 - count_underP)
       
-      dfToMain$count_underEqP <- dfToMain$count_underEqP * (-1)
+      dfToMain$count_underP <- dfToMain$count_underP * (-1)
       
-      influenceDF$mainPlot <- dfToMain
+      influenceDF$mainPlot <- dfToMain # data to main plot
+      
+      dfMarg1 <- df %>%
+        group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
+        summarise(count_all = n()) %>%
+        inner_join(dfMarg1, by = input$grouping) %>%
+        mutate(count_underP = count_under/count_all) %>%
+        mutate(count_aboveP = 1 - count_underP) %>%
+        ungroup()
+        
+      dfMarg1$count_underP <- dfMarg1$count_underP * (-1)
+      
+      influenceDF$margPlot <- dfMarg1 # data to marginal plot
       
     }
     
@@ -473,7 +492,7 @@ shinyServer(function(input, output, session) {
     df <- influenceDF$mainPlot
     
     toPlot <- ggplot(aes_string(x = 'YEARMONTH', fill = input$grouping), data = df) +
-      geom_bar(aes(y = count_underEqP), stat = 'identity', position = 'dodge', alpha = 0.5) +
+      geom_bar(aes(y = count_underP), stat = 'identity', position = 'dodge', alpha = 0.5) +
       geom_bar(aes(y = count_aboveP), stat = 'identity', position = 'dodge', alpha = 0.5) +
       geom_hline(yintercept = 0, linetype = 2, size = 2, color = 'red') +
       #ylim(c(-1, 1)) +
@@ -482,6 +501,26 @@ shinyServer(function(input, output, session) {
             axis.line = element_line(colour = '#BDBDBD'),
             axis.title.y = element_blank())
 
+    toPlot
+    
+  })
+  
+  output$influence_plotMargin <- renderPlot({
+    
+    req(influenceDF$margPlot, input$units)
+    
+    df <- influenceDF$margPlot
+    
+    toPlot <- ggplot(aes_string(x = input$grouping, fill = input$grouping), data = df) +
+      geom_bar(aes(y = count_underP), stat = 'identity', position = 'dodge', alpha = 0.5) +
+      geom_bar(aes(y = count_aboveP), stat = 'identity', position = 'dodge', alpha = 0.5) +
+      geom_hline(yintercept = 0, linetype = 2, size = 2, color = 'red') +
+      theme(legend.position = 'none',
+            panel.background = element_rect(fill =NA),
+            panel.grid.major = element_line(colour = '#e5e5e5'),
+            axis.line = element_line(colour = '#BDBDBD'),
+            axis.title.y = element_blank())
+    
     toPlot
     
   })
