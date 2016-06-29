@@ -66,7 +66,7 @@ shinyServer(function(input, output, session) {
     
     l <- l[1:match(input$grouping, l) - 1]
     
-    selectizeInput('level',
+    selectInput('level',
                    label = 'Level',
                    choices = l,
                    multiple = F)
@@ -481,6 +481,81 @@ shinyServer(function(input, output, session) {
       
       influenceDF$margPlot <- dfMarg1 # data to marginal plot
       
+    } else {
+      
+      if (input$influence_choice == 'share'){
+        
+        #df <- dfToPlot$df
+        
+        if (input$influenceOpts == 'mean'){
+          
+          dfYM <- df %>%
+            group_by(YEARMONTH) %>%
+            summarise(statYM = mean(util_bill)) %>%
+            ungroup()
+          
+          dfMarg <- df %>%
+            mutate(stat = mean(util_bill)) %>%
+            filter(util_bill < stat)
+
+          
+        } else {
+          
+          if (input$influenceOpts == 'quant'){
+            
+           dfYM <- df %>%
+             group_by(YEARMONTH) %>%
+             summarise(statYM = quantile(util_bill, probs = input$influenceQuantile, na.rm = T)) %>%
+             ungroup()
+           
+           dfMarg <- df %>%
+             mutate(stat = quantile(util_bill, probs = input$influenceQuantile, na.rm = T)) %>%
+             filter(util_bill < stat)
+            
+          }
+          
+        }
+        
+        dfMain1 <- df %>%
+          inner_join(dfYM, by = 'YEARMONTH') %>%
+          filter(util_bill < statYM) %>%
+          group_by(YEARMONTH) %>%
+          summarise(count_underAll = n()) %>%
+          ungroup()
+        
+        dfMain2 <- df %>%
+          inner_join(dfYM, by = 'YEARMONTH') %>%
+          filter(util_bill < statYM) %>%
+          group_by_(.dots = lapply(toGroup, as.symbol)) %>%
+          summarise(count_under = n()) %>%
+          ungroup()
+        
+        dfMain <- dfMain1 %>%
+          inner_join(dfMain2, by = 'YEARMONTH') %>%
+          mutate(share_under = count_under/count_underAll)
+        
+        influenceDF$mainPlot <- dfMain # data to main plot
+        
+        margCount <- nrow(dfMarg)
+        
+        dfMarg <- dfMarg %>%
+          group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
+          summarise(count_under = n()) %>%
+          ungroup()
+        
+        dfMarg$share_under <- dfMarg$count_under/margCount
+        
+        influenceDF$margPlot <- dfMarg # data to marginal plot
+        
+      } else {
+      
+        if (input$influenceOpts == 'whole'){
+          
+          
+          
+        }
+        
+      }
     }
     
   })
@@ -491,15 +566,31 @@ shinyServer(function(input, output, session) {
     
     df <- influenceDF$mainPlot
     
-    toPlot <- ggplot(aes_string(x = 'YEARMONTH', fill = input$grouping), data = df) +
-      geom_bar(aes(y = count_underP), stat = 'identity', position = 'dodge', alpha = 0.5) +
-      geom_bar(aes(y = count_aboveP), stat = 'identity', position = 'dodge', alpha = 0.5) +
-      geom_hline(yintercept = 0, linetype = 2, size = 2, color = 'red') +
-      #ylim(c(-1, 1)) +
-      theme(panel.background = element_rect(fill =NA),
-            panel.grid.major = element_line(colour = '#e5e5e5'),
-            axis.line = element_line(colour = '#BDBDBD'),
-            axis.title.y = element_blank())
+    if (input$influence_choice == 'values'){
+    
+      toPlot <- ggplot(aes_string(x = 'YEARMONTH', fill = input$grouping), data = df) +
+        geom_bar(aes(y = count_underP), stat = 'identity', position = 'dodge', alpha = 0.5) +
+        geom_bar(aes(y = count_aboveP), stat = 'identity', position = 'dodge', alpha = 0.5) +
+        geom_hline(yintercept = 0, linetype = 2, size = 2, color = 'red') +
+        #ylim(c(-1, 1)) +
+        theme(panel.background = element_rect(fill =NA),
+              panel.grid.major = element_line(colour = '#e5e5e5'),
+              axis.line = element_line(colour = '#BDBDBD'),
+              axis.title.y = element_blank())
+    } else {
+      
+      if (input$influence_choice == 'share'){
+        
+        toPlot <- ggplot(aes_string(x = 'YEARMONTH', fill = input$grouping), data = df) +
+          geom_bar(aes(y = share_under), stat = 'identity', position = 'dodge', alpha = 0.5) +
+          theme(panel.background = element_rect(fill =NA),
+                panel.grid.major = element_line(colour = '#e5e5e5'),
+                axis.line = element_line(colour = '#BDBDBD'),
+                axis.title.y = element_blank())
+        
+      }
+      
+    }
 
     toPlot
     
@@ -511,15 +602,32 @@ shinyServer(function(input, output, session) {
     
     df <- influenceDF$margPlot
     
-    toPlot <- ggplot(aes_string(x = input$grouping, fill = input$grouping), data = df) +
-      geom_bar(aes(y = count_underP), stat = 'identity', position = 'dodge', alpha = 0.5) +
-      geom_bar(aes(y = count_aboveP), stat = 'identity', position = 'dodge', alpha = 0.5) +
-      geom_hline(yintercept = 0, linetype = 2, size = 2, color = 'red') +
-      theme(legend.position = 'none',
-            panel.background = element_rect(fill =NA),
-            panel.grid.major = element_line(colour = '#e5e5e5'),
-            axis.line = element_line(colour = '#BDBDBD'),
-            axis.title.y = element_blank())
+    if (input$influence_choice == 'values'){
+    
+      toPlot <- ggplot(aes_string(x = input$grouping, fill = input$grouping), data = df) +
+        geom_bar(aes(y = count_underP), stat = 'identity', position = 'dodge', alpha = 0.5) +
+        geom_bar(aes(y = count_aboveP), stat = 'identity', position = 'dodge', alpha = 0.5) +
+        geom_hline(yintercept = 0, linetype = 2, size = 2, color = 'red') +
+        theme(legend.position = 'none',
+              panel.background = element_rect(fill =NA),
+              panel.grid.major = element_line(colour = '#e5e5e5'),
+              axis.line = element_line(colour = '#BDBDBD'),
+              axis.title.y = element_blank())
+    } else {
+      
+      if (input$influence_choice == 'share'){
+        
+        toPlot <- ggplot(aes_string(x = input$grouping, fill = input$grouping), data = df) +
+          geom_bar(aes(y = share_under), stat = 'identity', position = 'dodge', alpha = 0.5) +
+          theme(legend.position = 'none',
+                panel.background = element_rect(fill =NA),
+                panel.grid.major = element_line(colour = '#e5e5e5'),
+                axis.line = element_line(colour = '#BDBDBD'),
+                axis.title.y = element_blank())
+        
+      }
+      
+    }
     
     toPlot
     
@@ -2109,4 +2217,5 @@ shinyServer(function(input, output, session) {
 # 2 nase vytvory
 # 2 potencial, napady,...dd
 
-# as
+# http://www.r-tutor.com/elementary-statistics/non-parametric-methods/mann-whitney-wilcoxon-test
+# http://stackoverflow.com/questions/20060949/ggplot2-multiple-sub-groups-of-a-bar-chart
