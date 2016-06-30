@@ -484,9 +484,7 @@ shinyServer(function(input, output, session) {
     } else {
       
       if (input$influence_choice == 'share'){
-        
-        #df <- dfToPlot$df
-        
+
         if (input$influenceOpts == 'mean'){
           
           dfYM <- df %>%
@@ -2219,3 +2217,14 @@ shinyServer(function(input, output, session) {
 
 # http://www.r-tutor.com/elementary-statistics/non-parametric-methods/mann-whitney-wilcoxon-test
 # http://stackoverflow.com/questions/20060949/ggplot2-multiple-sub-groups-of-a-bar-chart
+
+# ggplot(aes(x = interaction(ORG_NAME, YEARMONTH), y = m, fill = GEO_NAME), data = df_util_test) + 
+#   geom_bar(stat = 'identity', position = 'dodge') + 
+#   annotate('text', 
+#            x = 1:length(unique(interaction(df_util_test$ORG_NAME, df_util_test$YEARMONTH))), 
+#            y = - 0.02, 
+#            label = rep(unique(df_util_test$ORG_NAME), length(unique(df_util_test$YEARMONTH)))) + 
+#   annotate('text', 
+#            x = (1:(length(unique(df_util_test$YEARMONTH)))) * length(unique(df_util_test$ORG_NAME)) - length(unique(df_util_test$ORG_NAME))/2 + 0.5 , 
+#            y = - 0.07, 
+#            label = unique(df_util_test$YEARMONTH))

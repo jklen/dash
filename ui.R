@@ -392,7 +392,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                  
                                         ),
                                         
-                                        tabPanel('Map',
+                                        tabPanel('User countries',
                                                  
                                                  leafletOutput('countries',
                                                                height = '600px'),
