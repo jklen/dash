@@ -2219,12 +2219,21 @@ shinyServer(function(input, output, session) {
 # http://stackoverflow.com/questions/20060949/ggplot2-multiple-sub-groups-of-a-bar-chart
 
 # ggplot(aes(x = interaction(ORG_NAME, YEARMONTH), y = m, fill = GEO_NAME), data = df_util_test) + 
-#   geom_bar(stat = 'identity', position = 'dodge') + 
+#   geom_bar(stat = 'identity', position = 'dodge', alpha = 0.5) + 
 #   annotate('text', 
 #            x = 1:length(unique(interaction(df_util_test$ORG_NAME, df_util_test$YEARMONTH))), 
-#            y = - 0.02, 
-#            label = rep(unique(df_util_test$ORG_NAME), length(unique(df_util_test$YEARMONTH)))) + 
+#            y = - 0.02, label = rep(unique(df_util_test$ORG_NAME), length(unique(df_util_test$YEARMONTH)))) + 
 #   annotate('text', 
 #            x = (1:(length(unique(df_util_test$YEARMONTH)))) * length(unique(df_util_test$ORG_NAME)) - length(unique(df_util_test$ORG_NAME))/2 + 0.5 , 
-#            y = - 0.07, 
-#            label = unique(df_util_test$YEARMONTH))
+#            y = - 0.07, label = unique(df_util_test$YEARMONTH)) + 
+#   theme(panel.background = element_rect(fill =NA), 
+#         axis.text.x = element_blank(), 
+#         panel.grid.major = element_line(colour = '#e5e5e5'), 
+#         panel.grid.major.x = element_blank(), 
+#         axis.ticks.x = element_blank(), 
+#         axis.line = element_line(colour = '#bdbdbd'), 
+#         axis.title.y = element_blank(), 
+#         axis.title.x = element_blank()) + 
+#   geom_vline(xintercept = seq(length(unique(df_util_test$ORG_NAME)) + 0.5, 
+#                               length(unique(interaction(df_util_test$ORG_NAME, df_util_test$YEARMONTH))), 
+#                               length(unique(df_util_test$ORG_NAME))))
