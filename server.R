@@ -442,7 +442,7 @@ shinyServer(function(input, output, session) {
             summarise(count_under = n()) %>%
             ungroup()
           
-          influenceDF$testdf <- dfYM
+          #influenceDF$testdf <- dfYM
           
         }
         
@@ -545,15 +545,109 @@ shinyServer(function(input, output, session) {
         
         influenceDF$margPlot <- dfMarg # data to marginal plot
         
-      } else {
+      } 
       
-        if (input$influenceOpts == 'whole'){
+    }
+    
+  })
+  
+  observeEvent(c(input$units, input$influenceOpts, input$influence_choice, input$influenceQuantile, input$level), {
+    
+    req(dfToPlot, input$units)
+    
+    df <- dfToPlot$df
+    dfAll <- pass_df()
+    
+    if (input$influence_choice == 'whole'){
+      
+      if (input$level == 'global'){
+        
+          dfMain1 <- dfAll %>%
+            group_by(YEARMONTH) %>%
+            summarise(statWith = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T),
+                                        quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+            ungroup()
           
+          #cat(file=stderr(), "---", unique(dfMain1[1]))
           
+          for (unit in input$units){
+            
+            dfMain2 <- dfAll[dfAll[[input$grouping]] != unit, ]
+            dfMain2 <- dfMain2 %>%
+              group_by(YEARMONTH) %>%
+              summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T),
+                                             quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+              full_join(dfMain1, by = 'YEARMONTH') %>%
+              mutate(statMov = (statWithout - statWith)/statWith) %>%
+              ungroup()
+            
+            dfMain2[input$grouping] <- unit
+            
+            if (unit == input$units[1]){
+              
+              dfMain <- dfMain2
+              
+            } else {
+              
+              dfMain <- dfMain %>%
+                bind_rows(dfMain2)
+              
+            }
+            
+
+          }
           
+        
+        
+      } else {
+        
+        if (input$level == 'selected'){
+          
+          # dorobit (percentualny pohyb len v ramci zvolenych grup)
+          
+        } else {
+          
+          dfMain1 <- dfAll %>%
+            group_by_(.dots = lapply(c(input$level, 'YEARMONTH'), as.symbol)) %>%
+            summarise(statWith = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
+                                        quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+            ungroup()
+          
+          for (unit in input$units){
+            
+            dfMain2 <- dfAll[dfAll[[input$grouping]] != unit, ]
+            
+            dfMain2 <- dfMain2 %>%
+              group_by_(.dots = lapply(c(input$level, 'YEARMONTH'), as.symbol)) %>%
+              summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
+                                          quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+              full_join(dfMain1, by = c(input$level, 'YEARMONTH')) %>%
+              mutate(statMov = (statWithout - statWith)/statWith) %>%
+              ungroup()
+            
+            dfMain2[input$grouping] <- unit
+            
+            if (unit == input$units[1]){
+              
+              dfMain <- dfMain2
+              
+            } else {
+              
+              dfMain <- dfMain %>%
+                bind_rows(dfMain2)
+              
+            }
+            
+          }
+          
+
         }
         
       }
+      
+      influenceDF$testdf <- dfMain
+      influenceDF$mainPlot <- dfMain
+      
     }
     
   })
@@ -563,6 +657,8 @@ shinyServer(function(input, output, session) {
     req(influenceDF$mainPlot, input$units)
     
     df <- influenceDF$mainPlot
+    
+    df[input$grouping] <- factor(df[[input$grouping]])
     
     if (input$influence_choice == 'values'){
     
@@ -585,6 +681,34 @@ shinyServer(function(input, output, session) {
                 panel.grid.major = element_line(colour = '#e5e5e5'),
                 axis.line = element_line(colour = '#BDBDBD'),
                 axis.title.y = element_blank())
+        
+      } else {
+        
+        if (input$influence_choice == 'whole'){
+          
+          toPlot <- 
+            ggplot(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), y = 'statMov', fill = input$level), data = df) +
+              geom_bar(stat = 'identity', position = 'dodge', alpha = 0.5) +
+              #ylim(min(df$statMov) - 0.1, max(df$statMov) + 0.01) +
+              annotate('text',
+                      x = 1:length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
+                      y = min(df$statMov) - 0.02, label = rep(unique(df[[input$grouping]]), length(unique(df[['YEARMONTH']])))) +
+              annotate('text',
+                      x = (1:(length(unique(df[['YEARMONTH']])))) * length(unique(df[[input$grouping]])) - length(unique(df[[input$grouping]]))/2 + 0.5 ,
+                      y = min(df$statMov) - 0.07, label = unique(df[['YEARMONTH']])) +
+               theme(panel.background = element_rect(fill =NA),
+                    axis.text.x = element_blank(),
+                    panel.grid.major = element_line(colour = '#e5e5e5'),
+                    panel.grid.major.x = element_blank(),
+                    axis.ticks.x = element_blank(),
+                    axis.line = element_line(colour = '#bdbdbd'),
+                    axis.title.y = element_blank(),
+                    axis.title.x = element_blank()) +
+             geom_vline(xintercept = seq(length(unique(df[[input$grouping]])) + 0.5,
+                                         length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
+                                         length(unique(df[[input$grouping]]))))
+          
+        }
         
       }
       
