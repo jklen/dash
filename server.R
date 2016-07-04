@@ -687,12 +687,39 @@ shinyServer(function(input, output, session) {
         if (input$influence_choice == 'whole'){
           
           toPlot <- 
-            ggplot(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), y = 'statMov', fill = input$level), data = df) +
-              geom_bar(stat = 'identity', position = 'dodge', alpha = 0.5) +
+            ggplot(data = NULL) +
+              geom_bar(stat = 'identity',
+                       position = 'dodge',
+                       aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), 
+                                  y = 'maxFill', 
+                                  colour = input$grouping), 
+                       data = df %>%
+                         group_by() %>%
+                         summarise(maxFill = max(statMov)) %>%
+                         cbind(df),
+                       alpha = 0.01,
+                       fill = 'white') +
+            geom_bar(stat = 'identity',
+                     position = 'dodge',
+                     aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), 
+                                y = 'minFill', 
+                                colour = input$grouping), 
+                     data = df %>%
+                       group_by() %>%
+                       summarise(minFill = min(statMov)) %>%
+                       cbind(df),
+                     alpha = 0.01,
+                     fill = 'white') +
+            geom_bar(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), 
+                                y = 'statMov', fill = input$level), 
+                     stat = 'identity', 
+                     position = 'dodge', 
+                     alpha = 0.8,
+                     data = df) +
               #ylim(min(df$statMov) - 0.1, max(df$statMov) + 0.01) +
-              annotate('text',
-                      x = 1:length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
-                      y = min(df$statMov) - 0.02, label = rep(unique(df[[input$grouping]]), length(unique(df[['YEARMONTH']])))) +
+              # annotate('text',
+              #         x = 1:length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
+              #         y = min(df$statMov) - 0.02, label = rep(unique(df[[input$grouping]]), length(unique(df[['YEARMONTH']])))) +
               annotate('text',
                       x = (1:(length(unique(df[['YEARMONTH']])))) * length(unique(df[[input$grouping]])) - length(unique(df[[input$grouping]]))/2 + 0.5 ,
                       y = min(df$statMov) - 0.07, label = unique(df[['YEARMONTH']])) +
@@ -706,7 +733,8 @@ shinyServer(function(input, output, session) {
                     axis.title.x = element_blank()) +
              geom_vline(xintercept = seq(length(unique(df[[input$grouping]])) + 0.5,
                                          length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
-                                         length(unique(df[[input$grouping]]))))
+                                         length(unique(df[[input$grouping]]))),
+                        linetype = 2)
           
         }
         
@@ -2361,3 +2389,6 @@ shinyServer(function(input, output, session) {
 #   geom_vline(xintercept = seq(length(unique(df_util_test$ORG_NAME)) + 0.5,
 #                               length(unique(interaction(df_util_test$ORG_NAME, df_util_test$YEARMONTH))),
 #                               length(unique(df_util_test$ORG_NAME))))
+
+# http://www.hafro.is/~einarhj/education/ggplot2/scales.html
+# http://zevross.com/blog/2014/08/04/beautiful-plotting-in-r-a-ggplot2-cheatsheet-3/
