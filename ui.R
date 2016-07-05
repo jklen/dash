@@ -303,10 +303,8 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                         
                                         tabPanel('Group influence',
                                                  
-                                                 fluidRow(column(9, plotOutput('influence_plotMain',
+                                                 fluidRow(plotOutput('influence_plotMain',
                                                                                click = clickOpts('influence_mainClick'))),
-                                                          column(3, plotOutput('influence_plotMargin',
-                                                                               click = clickOpts('influence_marginalClick')))),
                                                  fluidRow(DT::dataTableOutput('influence_DT')),
                                                  
                                                  verbatimTextOutput('test_influence')

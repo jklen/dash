@@ -657,9 +657,7 @@ shinyServer(function(input, output, session) {
     req(influenceDF$mainPlot, input$units)
     
     df <- influenceDF$mainPlot
-    
-    df[input$grouping] <- factor(df[[input$grouping]])
-    
+
     if (input$influence_choice == 'values'){
     
       toPlot <- ggplot(aes_string(x = 'YEARMONTH', fill = input$grouping), data = df) +
@@ -695,7 +693,7 @@ shinyServer(function(input, output, session) {
                                   colour = input$grouping), 
                        data = df %>%
                          group_by() %>%
-                         summarise(maxFill = max(statMov)) %>%
+                         summarise(maxFill = max(statMov, na.rm = T)) %>%
                          cbind(df),
                        alpha = 0.01,
                        fill = 'white') +
@@ -706,7 +704,7 @@ shinyServer(function(input, output, session) {
                                 colour = input$grouping), 
                      data = df %>%
                        group_by() %>%
-                       summarise(minFill = min(statMov)) %>%
+                       summarise(minFill = min(statMov, na.rm = T)) %>%
                        cbind(df),
                      alpha = 0.01,
                      fill = 'white') +
