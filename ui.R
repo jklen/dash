@@ -303,11 +303,31 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                         
                                         tabPanel('Group influence',
                                                  
-                                                 fluidRow(plotOutput('influence_plotMain',
-                                                                               click = clickOpts('influence_mainClick'))),
-                                                 fluidRow(DT::dataTableOutput('influence_DT')),
+                                                 tabsetPanel(id = 'GI',
+                                                             
+                                                           tabPanel('By month',
+                                               
+                                                               fluidRow(plotOutput('influence_plotMain',
+                                                                                             click = clickOpts('influence_mainClick'))),
+                                                               fluidRow(plotOutput('influence_plotShare')),
+
+                                                               verbatimTextOutput('test_influence')
+                                               
+                                                           ),
                                                  
-                                                 verbatimTextOutput('test_influence')
+                                                            tabPanel('Overall',
+                                                                     
+                                                                     fluidRow(plotOutput('influence_plotOverall')),
+                                                                     fluidRow(plotOutput('influence_plotShareOverall'))
+                                                            ),
+                                                             
+                                                            tabPanel('Table',
+                                                                     
+                                                                     fluidRow(DT::dataTableOutput('influence_table'))
+                                                                     
+                                                            )
+                                                             
+                                                 )
                                         
                                         ),
                                         
