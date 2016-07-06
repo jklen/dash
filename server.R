@@ -2390,3 +2390,4 @@ shinyServer(function(input, output, session) {
 
 # http://www.hafro.is/~einarhj/education/ggplot2/scales.html
 # http://zevross.com/blog/2014/08/04/beautiful-plotting-in-r-a-ggplot2-cheatsheet-3/
+# http://www.cookbook-r.com/
