@@ -58,8 +58,8 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                 selectInput('influence_choice',
                                                             choices = c('Percent within category' = 'values',
                                                                         'Share from all users under statistic' = 'share',
-                                                                        'Whole category % influence' = 'whole',
-                                                                        'Category split % influence' = 'split'),
+                                                                        'Whole category influence' = 'whole',
+                                                                        'Category split influence' = 'split'),
                                                             multiple = F,
                                                             label = 'Measure',
                                                             selected = '1'),
@@ -67,7 +67,9 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                 conditionalPanel(condition = "input.influence_choice == 'whole' ||
                                                                  input.influence_choice == 'split'",
                                                                  
-                                                                 uiOutput('levelUI')
+                                                                 uiOutput('levelUI'),
+                                                                 
+                                                                 uiOutput('influence_hideUI')
                                                 ),
                                                 
                                                 selectInput(inputId = 'influenceOpts',
@@ -271,7 +273,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                selected = 'none')
                   )
                   
-                  
+                  ##################################################################################################
                   
                   ),
                   
@@ -307,8 +309,8 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                              
                                                            tabPanel('By month',
                                                
-                                                               fluidRow(plotOutput('influence_plotMain',
-                                                                                             click = clickOpts('influence_mainClick'))),
+                                                               fluidRow(plotOutput('influence_plotMain')),
+                                                               fluidRow(plotOutput('influence_plotDiff')),
                                                                fluidRow(plotOutput('influence_plotShare')),
 
                                                                verbatimTextOutput('test_influence')
@@ -318,6 +320,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                             tabPanel('Overall',
                                                                      
                                                                      fluidRow(plotOutput('influence_plotOverall')),
+                                                                     fluidRow(plotOutput('influence_plotDiffOverall')),
                                                                      fluidRow(plotOutput('influence_plotShareOverall'))
                                                             ),
                                                              

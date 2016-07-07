@@ -55,7 +55,7 @@ shinyServer(function(input, output, session) {
     
   })
   
-  # rendering listbox for possible levels
+  # rendering listbox for possible levels in Influence tab
   
   output$levelUI <- renderUI({
     
@@ -70,6 +70,30 @@ shinyServer(function(input, output, session) {
                    label = 'Level',
                    choices = l,
                    multiple = F)
+    
+  })
+  
+  # rendering listbox for hiding certain units in chosen level
+  
+  output$influence_hideUI <- renderUI({
+    
+    req(influenceDF$mainPlot, input$units)
+    
+    df <- influenceDF$mainPlot
+    
+    if (input$level != 'global'){
+    
+      units <- unique(df[[input$level]])
+      
+      selectInput('influence_hide',
+                  label = 'Hide',
+                  choices = units,
+                  selectize = T,
+                  multiple = T)
+      
+    }
+    
+    
     
   })
   
@@ -398,6 +422,7 @@ shinyServer(function(input, output, session) {
   
   output$test_influence <- renderPrint({
     t <- data.frame(influenceDF$testdf)
+    # t <- t[!is.na(t$statMov) & !is.nan(t$statMov) & !is.infinite(t$statMov), ]
     
     t
   })
@@ -570,6 +595,8 @@ shinyServer(function(input, output, session) {
             mutate(global = 'Global') %>%
             ungroup()
           
+          
+          
           #cat(file=stderr(), "---", unique(dfMain1[1]))
           
           for (unit in input$units){
@@ -582,6 +609,7 @@ shinyServer(function(input, output, session) {
                         countCatWithout = n()) %>%
               inner_join(dfMain1, by = 'YEARMONTH') %>%
               mutate(statMov = (statWith - statWithout)/statWithout,
+                     statDiff = statWith - statWithout,
                      catShare = (countAll - countCatWithout)/countAll) %>%
               ungroup()
             
@@ -629,6 +657,7 @@ shinyServer(function(input, output, session) {
                         countCatWithout = n()) %>%
               inner_join(dfMain1, by = c(input$level, 'YEARMONTH')) %>%
               mutate(statMov = (statWith - statWithout)/statWithout,
+                     statDiff = statWith - statWithout,
                      catShare = (countAll - countCatWithout)/countAll) %>%
               ungroup()
             
@@ -666,6 +695,12 @@ shinyServer(function(input, output, session) {
     req(influenceDF$mainPlot, input$units)
     
     df <- influenceDF$mainPlot
+    
+    if (!is.null(input$influence_hide)){
+      
+      df <- df[!(df[[input$level]] %in% input$influence_hide), ]
+      
+    }
 
     if (input$influence_choice == 'values'){
     
@@ -693,22 +728,18 @@ shinyServer(function(input, output, session) {
         
         if (input$influence_choice == 'whole'){
           
+          # df <- df[!is.na(df$statMov) & !is.nan(df$statMov) & !is.infinite(df$statMov), ]# because chart is not generated due to dividing by zero result NaN, Inf is misleading on chart
+          df$statMov <- ifelse(is.na(df$statMov) | is.nan(df$statMov) | is.infinite(df$statMov), 0, df$statMov)
+          
           toPlot <- 
             ggplot(data = NULL) +
               
               geom_bar(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), 
-                                  y = 'statMov', fill = ifelse(input$level == 'global' || (input$level != 'global' && length(unique(df[[input$level]])) == 1), input$grouping, input$level)), 
+                                  y = 'statMov', fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[[input$level]])) == 1), input$grouping, input$level)), 
                        stat = 'identity', 
                        position = 'dodge', 
                        alpha = 0.8,
                        data = df) +
-                #ylim(min(df$statMov) - 0.1, max(df$statMov) + 0.01) +
-                # annotate('text',
-                #         x = 1:length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
-                #         y = min(df$statMov) - 0.02, label = rep(unique(df[[input$grouping]]), length(unique(df[['YEARMONTH']])))) +
-              # annotate('text',
-              #         x = (1:(length(unique(df[['YEARMONTH']])))) * length(unique(df[[input$grouping]])) - length(unique(df[[input$grouping]]))/2 + 0.5 ,
-              #         y = min(df$statMov) - 0.07, label = unique(df[['YEARMONTH']])) +
               theme(panel.background = element_rect(fill =NA),
                     axis.text.x = element_blank(),
                     panel.grid.major = element_line(colour = '#e5e5e5'),
@@ -720,25 +751,28 @@ shinyServer(function(input, output, session) {
               geom_vline(xintercept = seq(length(unique(df[[input$grouping]])) + 0.5,
                                            length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
                                            length(unique(df[[input$grouping]]))),
-                          linetype = 2) +
+                          linetype = 2, size = 1) +
               geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
-              ggtitle('Percentual influence')
+              ggtitle('Growth')
           
-          if (input$level != 'global' && length(unique(df[[input$level]])) > 1){
+          if (input$level != 'global' & length(unique(df[[input$level]])) > 1){
             
-            toPlot <- toPlot +
+            if (max(df$statMov) > 0){
             
-            geom_bar(stat = 'identity',
-                     position = 'dodge',
-                     aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), 
-                                y = 'maxFill', 
-                                colour = input$grouping), 
-                     data = df %>%
-                       group_by() %>%
-                       summarise(maxFill = max(statMov, na.rm = T)) %>%
-                       cbind(df),
-                     alpha = 0.01,
-                     fill = 'white')
+              toPlot <- toPlot +
+                geom_bar(stat = 'identity',
+                         position = 'dodge',
+                         aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), 
+                                    y = 'maxFill', 
+                                    colour = input$grouping), 
+                         data = df %>%
+                           group_by() %>%
+                           summarise(maxFill = max(statMov, na.rm = T)) %>%
+                           cbind(df),
+                         alpha = 0.01,
+                         fill = 'white')
+            
+            }
             
             if (min(df$statMov) < 0){
               
@@ -769,11 +803,101 @@ shinyServer(function(input, output, session) {
     
   })
   
+  output$influence_plotDiff <- renderPlot({
+    
+    req(influenceDF$mainPlot, input$units)
+    
+    df <- influenceDF$mainPlot
+    
+    if (!is.null(input$influence_hide)){
+      
+      df <- df[!(df[[input$level]] %in% input$influence_hide), ]
+      
+    }
+
+    if (input$influence_choice == 'whole'){
+
+      toPlot <- 
+        ggplot(data = NULL) +
+        
+        geom_bar(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), 
+                            y = 'statDiff', fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[[input$level]])) == 1), input$grouping, input$level)), 
+                 stat = 'identity', 
+                 position = 'dodge', 
+                 alpha = 0.8,
+                 data = df) +
+        theme(panel.background = element_rect(fill =NA),
+              axis.text.x = element_blank(),
+              panel.grid.major = element_line(colour = '#e5e5e5'),
+              panel.grid.major.x = element_blank(),
+              axis.ticks.x = element_blank(),
+              axis.line = element_line(colour = '#bdbdbd'),
+              axis.title.y = element_blank(),
+              axis.title.x = element_blank()) +
+        geom_vline(xintercept = seq(length(unique(df[[input$grouping]])) + 0.5,
+                                    length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
+                                    length(unique(df[[input$grouping]]))),
+                   linetype = 2, size = 1) +
+        geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
+        ggtitle('Difference')
+      
+      if (input$level != 'global' & length(unique(df[[input$level]])) > 1){
+        
+        if (max(df$statDiff) > 0){
+        
+          toPlot <- toPlot +
+            geom_bar(stat = 'identity',
+                     position = 'dodge',
+                     aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), 
+                                y = 'maxDiff', 
+                                colour = input$grouping), 
+                     data = df %>%
+                       group_by() %>%
+                       summarise(maxDiff = max(statDiff, na.rm = T)) %>%
+                       cbind(df),
+                     alpha = 0.01,
+                     fill = 'white')
+        
+        }
+        
+        if (min(df$statDiff) < 0){
+          
+          toPlot <- toPlot +
+            geom_bar(stat = 'identity',
+                     position = 'dodge',
+                     aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), 
+                                y = 'minDiff', 
+                                colour = input$grouping), 
+                     data = df %>%
+                       group_by() %>%
+                       summarise(minDiff = min(statDiff, na.rm = T)) %>%
+                       cbind(df),
+                     alpha = 0.01,
+                     fill = 'white')
+          
+        }
+        
+      }
+      
+      toPlot
+      
+    }
+    
+    
+    
+  })
+  
   output$influence_plotShare <- renderPlot({
     
     req(influenceDF$mainPlot, input$units)
     
     df <- influenceDF$mainPlot
+    
+    if (!is.null(input$influence_hide)){
+      
+      df <- df[!(df[[input$level]] %in% input$influence_hide), ]
+      
+    }
     
     if (input$influence_choice == 'whole'){
       
@@ -781,7 +905,7 @@ shinyServer(function(input, output, session) {
         ggplot(data = NULL) +
        
         geom_bar(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), 
-                            y = 'catShare', fill = ifelse(input$level == 'global' || (input$level != 'global' && length(unique(df[[input$level]])) == 1), input$grouping, input$level)), 
+                            y = 'catShare', fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[[input$level]])) == 1), input$grouping, input$level)), 
                  stat = 'identity', 
                  position = 'dodge', 
                  alpha = 0.8,
@@ -800,10 +924,10 @@ shinyServer(function(input, output, session) {
         geom_vline(xintercept = seq(length(unique(df[[input$grouping]])) + 0.5,
                                     length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
                                     length(unique(df[[input$grouping]]))),
-                   linetype = 2) +
-        ggtitle('Percentual share')
+                   linetype = 2, size = 1) +
+        ggtitle('Share')
       
-      if (input$level != 'global' && length(unique(df[[input$level]])) > 1){
+      if (input$level != 'global' & length(unique(df[[input$level]])) > 1){
         
        toPlot <- toPlot +
          
@@ -826,7 +950,7 @@ shinyServer(function(input, output, session) {
     
   })
   
-  output$influence_plotMargin <- renderPlot({
+  output$influence_plotOverall <- renderPlot({
     
     req(influenceDF$margPlot, input$units)
     
@@ -854,6 +978,14 @@ shinyServer(function(input, output, session) {
                 panel.grid.major = element_line(colour = '#e5e5e5'),
                 axis.line = element_line(colour = '#BDBDBD'),
                 axis.title.y = element_blank())
+        
+      } else {
+        
+        if (input$influence_choice == 'whole'){
+          
+          
+          
+        }
         
       }
       
