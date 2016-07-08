@@ -585,7 +585,11 @@ shinyServer(function(input, output, session) {
     
     if (input$influence_choice == 'whole'){
       
+      # calculations for global level only
+      
       if (input$level == 'global'){
+        
+          # data to YM plot
         
           dfMain1 <- dfAll %>%
             group_by(YEARMONTH) %>%
@@ -595,11 +599,21 @@ shinyServer(function(input, output, session) {
             mutate(global = 'Global') %>%
             ungroup()
           
+          # data to overall plot
           
+          dfMarg1 <- dfAll %>%
+            group_by() %>%
+            summarise(statWith =  ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T),
+                                         quantile(util_bill, probs = input$influenceQuantile, na.rm = T)),
+                      countAll = n()) %>%
+            mutate(global = 'global') %>%
+            ungroup()
           
           #cat(file=stderr(), "---", unique(dfMain1[1]))
           
           for (unit in input$units){
+            
+            # data to YM plot
             
             dfMain2 <- dfAll[dfAll[[input$grouping]] != unit, ]
             dfMain2 <- dfMain2 %>%
@@ -607,7 +621,7 @@ shinyServer(function(input, output, session) {
               summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T),
                                              quantile(util_bill, probs = input$influenceQuantile, na.rm = T)),
                         countCatWithout = n()) %>%
-              inner_join(dfMain1, by = 'YEARMONTH') %>%
+              full_join(dfMain1, by = 'YEARMONTH') %>%
               mutate(statMov = (statWith - statWithout)/statWithout,
                      statDiff = statWith - statWithout,
                      catShare = (countAll - countCatWithout)/countAll) %>%
@@ -615,22 +629,39 @@ shinyServer(function(input, output, session) {
             
             dfMain2[input$grouping] <- unit
             
+            # data to overall plot
+            
+            dfMarg2 <- dfAll[dfAll[[input$grouping]] != unit, ]
+            dfMarg2 <- dfMarg2 %>%
+              group_by() %>%
+              summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T),
+                                             quantile(util_bill, probs = input$influenceQuantile, na.rm = T)),
+                        countCatWithout = n()) %>%
+              cbind(dfMarg1) %>%
+              mutate(statMov = (statWith - statWithout)/statWithout,
+                     statDiff = statWith - statWithout,
+                     catShare = (countAll - countCatWithout)/countAll) %>%
+              ungroup()
+            
+            dfMarg2[input$grouping] <- unit
+            
             if (unit == input$units[1]){
               
               dfMain <- dfMain2
+              dfMarg <- dfMarg2
               
             } else {
               
               dfMain <- dfMain %>%
                 bind_rows(dfMain2)
               
+              dfMarg <- dfMarg %>%
+                bind_rows(dfMarg2)
+              
             }
-            
 
           }
           
-        
-        
       } else {
         
         if (input$level == 'selected'){
@@ -639,6 +670,10 @@ shinyServer(function(input, output, session) {
           
         } else {
           
+          # calculation for any other level except global (ex. ORG, GEO,...)
+          
+            # data to YM plot
+          
           dfMain1 <- dfAll %>%
             group_by_(.dots = lapply(c(input$level, 'YEARMONTH'), as.symbol)) %>%
             summarise(statWith = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
@@ -646,7 +681,18 @@ shinyServer(function(input, output, session) {
                       countAll = n()) %>%
             ungroup()
           
+            # data to overall plot
+          
+          dfMarg1 <- dfAll %>%
+            group_by_(.dots = lapply(input$level, as.symbol)) %>%
+            summarise(statWith = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
+                                        quantile(util_bill, probs = input$influenceQuantile, na.rm = T)),
+                      countAll = n()) %>%
+            ungroup()
+          
           for (unit in input$units){
+            
+            # data to YM plot
             
             dfMain2 <- dfAll[dfAll[[input$grouping]] != unit, ]
             
@@ -655,7 +701,7 @@ shinyServer(function(input, output, session) {
               summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
                                           quantile(util_bill, probs = input$influenceQuantile, na.rm = T)),
                         countCatWithout = n()) %>%
-              inner_join(dfMain1, by = c(input$level, 'YEARMONTH')) %>%
+              full_join(dfMain1, by = c(input$level, 'YEARMONTH')) %>%
               mutate(statMov = (statWith - statWithout)/statWithout,
                      statDiff = statWith - statWithout,
                      catShare = (countAll - countCatWithout)/countAll) %>%
@@ -663,14 +709,35 @@ shinyServer(function(input, output, session) {
             
             dfMain2[input$grouping] <- unit
             
+            # data to overall plot
+            
+            dfMarg2 <- dfAll[dfAll[[input$grouping]] != unit, ]
+            
+            dfMarg2 <- dfMarg2 %>%
+              group_by_(.dots = lapply(input$level, as.symbol)) %>%
+              summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
+                                             quantile(util_bill, probs = input$influenceQuantile, na.rm = T)),
+                        countCatWithout = n()) %>%
+              full_join(dfMarg1, by = input$level) %>%
+              mutate(statMov = (statWith - statWithout)/statWithout,
+                     statDiff = statWith - statWithout,
+                     catShare = (countAll - countCatWithout)/countAll) %>%
+              ungroup()
+            
+            dfMarg2[input$grouping] <- unit
+            
             if (unit == input$units[1]){
               
               dfMain <- dfMain2
+              dfMarg <- dfMarg2
               
             } else {
               
               dfMain <- dfMain %>%
                 bind_rows(dfMain2)
+              
+              dfMarg <- dfMarg %>%
+                bind_rows(dfMarg2)
               
             }
             
@@ -681,10 +748,11 @@ shinyServer(function(input, output, session) {
         
       }
       
-      dfMain <- dfMain[dfMain$countCatWithout != dfMain$countAll, ]
+      #dfMain <- dfMain[dfMain$countCatWithout != dfMain$countAll, ]
       
       influenceDF$testdf <- dfMain
       influenceDF$mainPlot <- dfMain
+      influenceDF$margPlot <- dfMarg
       
     }
     
@@ -712,7 +780,9 @@ shinyServer(function(input, output, session) {
         theme(panel.background = element_rect(fill =NA),
               panel.grid.major = element_line(colour = '#e5e5e5'),
               axis.line = element_line(colour = '#BDBDBD'),
-              axis.title.y = element_blank())
+              axis.title.y = element_blank()) +
+        scale_y_continuous(labels = scales::percent)
+      
     } else {
       
       if (input$influence_choice == 'share'){
@@ -722,7 +792,8 @@ shinyServer(function(input, output, session) {
           theme(panel.background = element_rect(fill =NA),
                 panel.grid.major = element_line(colour = '#e5e5e5'),
                 axis.line = element_line(colour = '#BDBDBD'),
-                axis.title.y = element_blank())
+                axis.title.y = element_blank()) +
+          scale_y_continuous(labels = scales::percent)
         
       } else {
         
@@ -730,12 +801,13 @@ shinyServer(function(input, output, session) {
           
           # df <- df[!is.na(df$statMov) & !is.nan(df$statMov) & !is.infinite(df$statMov), ]# because chart is not generated due to dividing by zero result NaN, Inf is misleading on chart
           df$statMov <- ifelse(is.na(df$statMov) | is.nan(df$statMov) | is.infinite(df$statMov), 0, df$statMov)
-          
+
           toPlot <- 
             ggplot(data = NULL) +
               
               geom_bar(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), 
-                                  y = 'statMov', fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[[input$level]])) == 1), input$grouping, input$level)), 
+                                  y = 'statMov', 
+                                  fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[df$statMov > 0, ][[input$level]])) == 1), input$grouping, input$level)), 
                        stat = 'identity', 
                        position = 'dodge', 
                        alpha = 0.8,
@@ -753,9 +825,10 @@ shinyServer(function(input, output, session) {
                                            length(unique(df[[input$grouping]]))),
                           linetype = 2, size = 1) +
               geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
-              ggtitle('Growth')
+              ggtitle('Growth') +
+            scale_y_continuous(labels = scales::percent)
           
-          if (input$level != 'global' & length(unique(df[[input$level]])) > 1){
+          if (input$level != 'global' & length(unique(df[df$statMov > 0, ][[input$level]])) > 1){
             
             if (max(df$statMov) > 0){
             
@@ -816,12 +889,15 @@ shinyServer(function(input, output, session) {
     }
 
     if (input$influence_choice == 'whole'){
+      
+      df$statDiff <- ifelse(is.na(df$statDiff) | is.nan(df$statDiff) | is.infinite(df$statDiff), 0, df$statDiff)
 
       toPlot <- 
         ggplot(data = NULL) +
         
         geom_bar(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), 
-                            y = 'statDiff', fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[[input$level]])) == 1), input$grouping, input$level)), 
+                            y = 'statDiff', 
+                            fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[df$statDiff > 0, ][[input$level]])) == 1), input$grouping, input$level)), 
                  stat = 'identity', 
                  position = 'dodge', 
                  alpha = 0.8,
@@ -841,7 +917,7 @@ shinyServer(function(input, output, session) {
         geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
         ggtitle('Difference')
       
-      if (input$level != 'global' & length(unique(df[[input$level]])) > 1){
+      if (input$level != 'global' & length(unique(df[df$statDiff > 0, ][[input$level]])) > 1){
         
         if (max(df$statDiff) > 0){
         
@@ -905,7 +981,7 @@ shinyServer(function(input, output, session) {
         ggplot(data = NULL) +
        
         geom_bar(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]), 
-                            y = 'catShare', fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[[input$level]])) == 1), input$grouping, input$level)), 
+                            y = 'catShare', fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[df$catShare > 0, ][[input$level]])) == 1), input$grouping, input$level)), 
                  stat = 'identity', 
                  position = 'dodge', 
                  alpha = 0.8,
@@ -925,9 +1001,10 @@ shinyServer(function(input, output, session) {
                                     length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
                                     length(unique(df[[input$grouping]]))),
                    linetype = 2, size = 1) +
-        ggtitle('Share')
+        ggtitle('Share') +
+        scale_y_continuous(labels = scales::percent)
       
-      if (input$level != 'global' & length(unique(df[[input$level]])) > 1){
+      if (input$level != 'global' & length(unique(df[df$catShare > 0, ][[input$level]])) > 1){
         
        toPlot <- toPlot +
          
@@ -956,6 +1033,8 @@ shinyServer(function(input, output, session) {
     
     df <- influenceDF$margPlot
     
+    
+    
     if (input$influence_choice == 'values'){
     
       toPlot <- ggplot(aes_string(x = input$grouping, fill = input$grouping), data = df) +
@@ -966,7 +1045,8 @@ shinyServer(function(input, output, session) {
               panel.background = element_rect(fill =NA),
               panel.grid.major = element_line(colour = '#e5e5e5'),
               axis.line = element_line(colour = '#BDBDBD'),
-              axis.title.y = element_blank())
+              axis.title.y = element_blank()) +
+        scale_y_continuous(labels = scales::percent)
     } else {
       
       if (input$influence_choice == 'share'){
@@ -977,13 +1057,80 @@ shinyServer(function(input, output, session) {
                 panel.background = element_rect(fill =NA),
                 panel.grid.major = element_line(colour = '#e5e5e5'),
                 axis.line = element_line(colour = '#BDBDBD'),
-                axis.title.y = element_blank())
+                axis.title.y = element_blank()) +
+          scale_y_continuous(labels = scales::percent)
         
       } else {
         
         if (input$influence_choice == 'whole'){
           
+          if (!is.null(input$influence_hide)){
+            
+            df <- df[!(df[[input$level]] %in% input$influence_hide), ]
+            
+          }
           
+          df$statMov <- ifelse(is.na(df$statMov) | is.nan(df$statMov) | is.infinite(df$statMov), 0, df$statMov)
+          
+          toPlot <- 
+            ggplot(data = NULL) +
+            
+            geom_bar(aes_string(x = input$grouping, 
+                                y = 'statMov',
+                                fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[df$statMov > 0, ][[input$level]])) == 1), input$grouping, input$level)), 
+                     stat = 'identity', 
+                     position = 'dodge', 
+                     alpha = 0.8,
+                     data = df) +
+            theme(panel.background = element_rect(fill =NA),
+                  axis.text.x = element_blank(),
+                  panel.grid.major = element_line(colour = '#e5e5e5'),
+                  panel.grid.major.x = element_blank(),
+                  axis.ticks.x = element_blank(),
+                  axis.line = element_line(colour = '#bdbdbd'),
+                  axis.title.y = element_blank(),
+                  axis.title.x = element_blank()) +
+            geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
+            ggtitle('Growth') +
+            scale_y_continuous(labels = scales::percent)
+          
+          if (input$level != 'global' & length(unique(df[df$statMov > 0, ][[input$level]])) > 1){
+            
+            if (max(df$statMov) > 0){
+              
+              toPlot <- toPlot +
+                geom_bar(stat = 'identity',
+                         position = 'dodge',
+                         aes_string(x = input$grouping, 
+                                    y = 'maxFill', 
+                                    colour = input$grouping), 
+                         data = df %>%
+                           group_by() %>%
+                           summarise(maxFill = max(statMov, na.rm = T)) %>%
+                           cbind(df),
+                         alpha = 0.01,
+                         fill = 'white')
+              
+            }
+            
+            if (min(df$statMov) < 0){
+              
+              toPlot <- toPlot +
+                geom_bar(stat = 'identity',
+                         position = 'dodge',
+                         aes_string(x = input$grouping, 
+                                    y = 'minFill', 
+                                    colour = input$grouping), 
+                         data = df %>%
+                           group_by() %>%
+                           summarise(minFill = min(statMov, na.rm = T)) %>%
+                           cbind(df),
+                         alpha = 0.01,
+                         fill = 'white')
+              
+            }
+            
+          }
           
         }
         
@@ -992,6 +1139,146 @@ shinyServer(function(input, output, session) {
     }
     
     toPlot
+    
+  })
+  
+  output$influence_plotDiffOverall <- renderPlot({
+    
+    
+    req(influenceDF$margPlot, input$units)
+    
+    df <- influenceDF$margPlot
+    
+    if (!is.null(input$influence_hide)){
+      
+      df <- df[!(df[[input$level]] %in% input$influence_hide), ]
+      
+    }
+    
+    if (input$influence_choice == 'whole'){
+      
+      df$statDiff <- ifelse(is.na(df$statDiff) | is.nan(df$statDiff) | is.infinite(df$statDiff), 0, df$statDiff)
+      
+      toPlot <- 
+        ggplot(data = NULL) +
+        
+        geom_bar(aes_string(x = input$grouping, 
+                            y = 'statDiff', 
+                            fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[df$statDiff > 0, ][[input$level]])) == 1), input$grouping, input$level)), 
+                 stat = 'identity', 
+                 position = 'dodge', 
+                 alpha = 0.8,
+                 data = df) +
+        theme(panel.background = element_rect(fill =NA),
+              axis.text.x = element_blank(),
+              panel.grid.major = element_line(colour = '#e5e5e5'),
+              panel.grid.major.x = element_blank(),
+              axis.ticks.x = element_blank(),
+              axis.line = element_line(colour = '#bdbdbd'),
+              axis.title.y = element_blank(),
+              axis.title.x = element_blank()) +
+        geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
+        ggtitle('Difference')
+      
+      if (input$level != 'global' & length(unique(df[df$statDiff > 0, ][[input$level]])) > 1){
+        
+        if (max(df$statDiff) > 0){
+          
+          toPlot <- toPlot +
+            geom_bar(stat = 'identity',
+                     position = 'dodge',
+                     aes_string(x = input$grouping, 
+                                y = 'maxDiff', 
+                                colour = input$grouping), 
+                     data = df %>%
+                       group_by() %>%
+                       summarise(maxDiff = max(statDiff, na.rm = T)) %>%
+                       cbind(df),
+                     alpha = 0.01,
+                     fill = 'white')
+          
+        }
+        
+        if (min(df$statDiff) < 0){
+          
+          toPlot <- toPlot +
+            geom_bar(stat = 'identity',
+                     position = 'dodge',
+                     aes_string(x = input$grouping, 
+                                y = 'minDiff', 
+                                colour = input$grouping), 
+                     data = df %>%
+                       group_by() %>%
+                       summarise(minDiff = min(statDiff, na.rm = T)) %>%
+                       cbind(df),
+                     alpha = 0.01,
+                     fill = 'white')
+          
+        }
+        
+      }
+      
+      toPlot
+      
+    }
+    
+  })
+  
+  output$influence_plotShareOverall <- renderPlot({
+    
+    req(influenceDF$margPlot, input$units)
+    
+    df <- influenceDF$margPlot
+    
+    if (!is.null(input$influence_hide)){
+      
+      df <- df[!(df[[input$level]] %in% input$influence_hide), ]
+      
+    }
+    
+    if (input$influence_choice == 'whole'){
+      
+      toPlot <- 
+        ggplot(data = NULL) +
+        
+        geom_bar(aes_string(x = input$grouping, 
+                            y = 'catShare', 
+                            fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[df$catShare > 0, ][[input$level]])) == 1), input$grouping, input$level)), 
+                 stat = 'identity', 
+                 position = 'dodge', 
+                 alpha = 0.8,
+                 data = df) +
+        theme(panel.background = element_rect(fill =NA),
+              axis.text.x = element_blank(),
+              panel.grid.major = element_line(colour = '#e5e5e5'),
+              panel.grid.major.x = element_blank(),
+              axis.ticks.x = element_blank(),
+              axis.line = element_line(colour = '#bdbdbd'),
+              axis.title.y = element_blank(),
+              axis.title.x = element_blank()) +
+        ggtitle('Share') +
+        scale_y_continuous(labels = scales::percent)
+      
+      if (input$level != 'global' & length(unique(df[df$catShare > 0, ][[input$level]])) > 1){
+        
+        toPlot <- toPlot +
+          
+          geom_bar(stat = 'identity',
+                   position = 'dodge',
+                   aes_string(x = input$grouping, 
+                              y = 'maxShare', 
+                              colour = input$grouping), 
+                   data = df %>%
+                     group_by() %>%
+                     summarise(maxShare = max(catShare, na.rm = T)) %>%
+                     cbind(df),
+                   alpha = 0.01,
+                   fill = 'white') 
+      }
+      
+      toPlot
+      
+    }
     
   })
   
