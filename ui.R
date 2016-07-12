@@ -58,19 +58,17 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                 selectInput('influence_choice',
                                                             choices = c('Percent within category' = 'values',
                                                                         'Share from all users under statistic' = 'share',
-                                                                        'Whole category influence' = 'whole',
-                                                                        'Category split influence' = 'split'),
+                                                                        'Category influence' = 'whole',
+                                                                        'Intervention impact' = 'intervention'),
                                                             multiple = F,
                                                             label = 'Measure',
                                                             selected = '1'),
-                                                
-                                                conditionalPanel(condition = "input.influence_choice == 'whole' ||
-                                                                 input.influence_choice == 'split'",
+
                                                                  
-                                                                 uiOutput('levelUI'),
-                                                                 
-                                                                 uiOutput('influence_hideUI')
-                                                ),
+                                                uiOutput('levelUI'),
+                                               
+                                                uiOutput('influence_hideUI'),
+                              
                                                 
                                                 selectInput(inputId = 'influenceOpts',
                                                             label = 'Statistic',

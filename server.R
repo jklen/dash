@@ -427,160 +427,11 @@ shinyServer(function(input, output, session) {
     t
   })
   
-  observeEvent(c(input$units, input$influenceOpts, input$influence_choice, input$influenceQuantile), {
-    
-    req(dfToPlot$df, input$units)
-    
-    df <- dfToPlot$df
-    
-    toGroup <- c(input$grouping, 'YEARMONTH')
-    
-    if (input$influence_choice == 'values'){
-      
-      if( input$influenceOpts == 'mean'){
-      
-        dfYM <- df %>%
-          group_by(YEARMONTH) %>%
-          summarise(statYM = mean(util_bill)) %>%
-          ungroup()
-        
-        dfMarg1 <- df %>%
-          mutate(stat = mean(util_bill)) %>%
-          filter(util_bill < stat) %>%
-          group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
-          summarise(count_under = n()) %>%
-          ungroup()
-        
-      } else {
-        
-        if (input$influenceOpts == 'quant'){
-          
-          dfYM <- df %>%
-            group_by(YEARMONTH) %>%
-            summarise(statYM = quantile(util_bill, probs = input$influenceQuantile, na.rm = T)) %>%
-            ungroup()
-          
-          dfMarg1 <- df %>%
-            mutate(stat = quantile(util_bill, probs = input$influenceQuantile, na.rm = T)) %>%
-            filter(util_bill < stat) %>%
-            group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
-            summarise(count_under = n()) %>%
-            ungroup()
-          
-          #influenceDF$testdf <- dfYM
-          
-        }
-        
-      }
-      
-      df1 <- df %>%
-        inner_join(dfYM, by = 'YEARMONTH') %>%
-        filter(util_bill < statYM) %>%
-        group_by_(.dots = lapply(toGroup, as.symbol)) %>%
-        summarise(count_under = n()) %>%
-        ungroup()
-      
-      df2 <- df %>%
-        group_by_(.dots = lapply(toGroup, as.symbol)) %>%
-        summarise(count_all = n()) %>%
-        ungroup()
-      
-      dfToMain <- df1 %>%
-        inner_join(df2, by = toGroup) %>%
-        mutate(count_underP = count_under/count_all) %>%
-        mutate(count_aboveP = 1 - count_underP)
-      
-      dfToMain$count_underP <- dfToMain$count_underP * (-1)
-      
-      influenceDF$mainPlot <- dfToMain # data to main plot
-      
-      dfMarg1 <- df %>%
-        group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
-        summarise(count_all = n()) %>%
-        inner_join(dfMarg1, by = input$grouping) %>%
-        mutate(count_underP = count_under/count_all) %>%
-        mutate(count_aboveP = 1 - count_underP) %>%
-        ungroup()
-        
-      dfMarg1$count_underP <- dfMarg1$count_underP * (-1)
-      
-      influenceDF$margPlot <- dfMarg1 # data to marginal plot
-      
-    } else {
-      
-      if (input$influence_choice == 'share'){
-
-        if (input$influenceOpts == 'mean'){
-          
-          dfYM <- df %>%
-            group_by(YEARMONTH) %>%
-            summarise(statYM = mean(util_bill)) %>%
-            ungroup()
-          
-          dfMarg <- df %>%
-            mutate(stat = mean(util_bill)) %>%
-            filter(util_bill < stat)
-
-          
-        } else {
-          
-          if (input$influenceOpts == 'quant'){
-            
-           dfYM <- df %>%
-             group_by(YEARMONTH) %>%
-             summarise(statYM = quantile(util_bill, probs = input$influenceQuantile, na.rm = T)) %>%
-             ungroup()
-           
-           dfMarg <- df %>%
-             mutate(stat = quantile(util_bill, probs = input$influenceQuantile, na.rm = T)) %>%
-             filter(util_bill < stat)
-            
-          }
-          
-        }
-        
-        dfMain1 <- df %>%
-          inner_join(dfYM, by = 'YEARMONTH') %>%
-          filter(util_bill < statYM) %>%
-          group_by(YEARMONTH) %>%
-          summarise(count_underAll = n()) %>%
-          ungroup()
-        
-        dfMain2 <- df %>%
-          inner_join(dfYM, by = 'YEARMONTH') %>%
-          filter(util_bill < statYM) %>%
-          group_by_(.dots = lapply(toGroup, as.symbol)) %>%
-          summarise(count_under = n()) %>%
-          ungroup()
-        
-        dfMain <- dfMain1 %>%
-          inner_join(dfMain2, by = 'YEARMONTH') %>%
-          mutate(share_under = count_under/count_underAll)
-        
-        influenceDF$mainPlot <- dfMain # data to main plot
-        
-        margCount <- nrow(dfMarg)
-        
-        dfMarg <- dfMarg %>%
-          group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
-          summarise(count_under = n()) %>%
-          ungroup()
-        
-        dfMarg$share_under <- dfMarg$count_under/margCount
-        
-        influenceDF$margPlot <- dfMarg # data to marginal plot
-        
-      } 
-      
-    }
-    
-  })
-  
   observeEvent(c(input$units, input$influenceOpts, input$influence_choice, input$influenceQuantile, input$level), {
     
     req(dfToPlot, input$units)
     
-    df <- dfToPlot$df
+    # df <- dfToPlot$df
     dfAll <- pass_df()
     
     if (input$influence_choice == 'whole'){
@@ -614,8 +465,10 @@ shinyServer(function(input, output, session) {
           for (unit in input$units){
             
             # data to YM plot
-            
+
             dfMain2 <- dfAll[dfAll[[input$grouping]] != unit, ]
+            dfMarg2 <- dfAll[dfAll[[input$grouping]] != unit, ]
+            
             dfMain2 <- dfMain2 %>%
               group_by(YEARMONTH) %>%
               summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T),
@@ -631,7 +484,7 @@ shinyServer(function(input, output, session) {
             
             # data to overall plot
             
-            dfMarg2 <- dfAll[dfAll[[input$grouping]] != unit, ]
+            
             dfMarg2 <- dfMarg2 %>%
               group_by() %>%
               summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T),
@@ -695,7 +548,8 @@ shinyServer(function(input, output, session) {
             # data to YM plot
             
             dfMain2 <- dfAll[dfAll[[input$grouping]] != unit, ]
-            
+            dfMarg2 <- dfAll[dfAll[[input$grouping]] != unit, ]
+
             dfMain2 <- dfMain2 %>%
               group_by_(.dots = lapply(c(input$level, 'YEARMONTH'), as.symbol)) %>%
               summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
@@ -711,8 +565,7 @@ shinyServer(function(input, output, session) {
             
             # data to overall plot
             
-            dfMarg2 <- dfAll[dfAll[[input$grouping]] != unit, ]
-            
+
             dfMarg2 <- dfMarg2 %>%
               group_by_(.dots = lapply(input$level, as.symbol)) %>%
               summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
@@ -754,6 +607,51 @@ shinyServer(function(input, output, session) {
       influenceDF$mainPlot <- dfMain
       influenceDF$margPlot <- dfMarg
       
+    } else {
+      
+      if (input$influence_choice == 'values'){
+        
+        if (input$level == 'global'){
+          
+          dfMain1 <- dfAll %>%
+            group_by_(.dots = lapply('YEARMONTH', as.symbol)) %>%
+            summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
+                                    quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+            ungroup()
+          
+          dfMain2 <- dfAll %>%
+            group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
+            summarise(countCat = n()) %>%
+            ungroup()
+          
+          dfMain3 <- dfAll %>%
+            inner_join(dfMain1, by = 'YEARMONTH') %>%
+            filter(util_bill < stat) %>%
+            group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
+            summarise(countCatUnder = n()) %>%
+            full_join(dfMain2, by = c(input$grouping, 'YEARMONTH')) %>%
+            mutate(percUnder = countCatUnder/countCat) %>%
+            ungroup()
+          
+          dfMain <- dfAll %>%
+            full_join(dfMain1, by = 'YEARMONTH') %>%
+            filter(util_bill > stat) %>%
+            group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
+            summarise(countCatAbove = n()) %>%
+            full_join(dfMain3, by = c(input$grouping, 'YEARMONTH')) %>%
+            mutate(percAbove = countCatAbove/countCat) %>%
+            mutate(percEqual = (countCat - countCatAbove - countCatUnder)/countCat) %>%
+            ungroup()
+          
+          dfMain$percUnder <- dfMain$percUnder * (-1)
+          
+          influenceDF$mainPlot <- dfMain
+          influenceDF$testdf <- dfMain
+          
+        }
+        
+      }
+      
     }
     
   })
@@ -771,17 +669,32 @@ shinyServer(function(input, output, session) {
     }
 
     if (input$influence_choice == 'values'){
+      
+      if (input$level == 'global'){
+        
+        toPlot <- ggplot(aes_string(x = 'YEARMONTH'), data = df) +
+          geom_bar(aes_string(y = 'percUnder', fill = input$grouping), stat = 'identity', position = 'dodge') +
+          geom_bar(aes_string(y = 'percAbove', fill = input$grouping), stat = 'identity', position = 'dodge') +
+          geom_bar(aes_string(y = 'percEqual'), fill = 'black', stat = 'identity', position = 'dodge') +
+          geom_hline(yintercept = 0, linetype = 2, size = 1.5, color = 'red') +
+          theme(panel.background = element_rect(fill =NA),
+                panel.grid.major = element_line(colour = '#e5e5e5'),
+                axis.line = element_line(colour = '#BDBDBD'),
+                axis.title.y = element_blank()) +
+          scale_y_continuous(labels = scales::percent)
+        
+      }
     
-      toPlot <- ggplot(aes_string(x = 'YEARMONTH', fill = input$grouping), data = df) +
-        geom_bar(aes(y = count_underP), stat = 'identity', position = 'dodge', alpha = 0.5) +
-        geom_bar(aes(y = count_aboveP), stat = 'identity', position = 'dodge', alpha = 0.5) +
-        geom_hline(yintercept = 0, linetype = 2, size = 1.5, color = 'red') +
-        #ylim(c(-1, 1)) +
-        theme(panel.background = element_rect(fill =NA),
-              panel.grid.major = element_line(colour = '#e5e5e5'),
-              axis.line = element_line(colour = '#BDBDBD'),
-              axis.title.y = element_blank()) +
-        scale_y_continuous(labels = scales::percent)
+      # toPlot <- ggplot(aes_string(x = 'YEARMONTH', fill = input$grouping), data = df) +
+      #   geom_bar(aes(y = count_underP), stat = 'identity', position = 'dodge', alpha = 0.5) +
+      #   geom_bar(aes(y = count_aboveP), stat = 'identity', position = 'dodge', alpha = 0.5) +
+      #   geom_hline(yintercept = 0, linetype = 2, size = 1.5, color = 'red') +
+      #   #ylim(c(-1, 1)) +
+      #   theme(panel.background = element_rect(fill =NA),
+      #         panel.grid.major = element_line(colour = '#e5e5e5'),
+      #         axis.line = element_line(colour = '#BDBDBD'),
+      #         axis.title.y = element_blank()) +
+      #   scale_y_continuous(labels = scales::percent)
       
     } else {
       
@@ -825,7 +738,7 @@ shinyServer(function(input, output, session) {
                                            length(unique(df[[input$grouping]]))),
                           linetype = 2, size = 1) +
               geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
-              ggtitle('Growth') +
+              ggtitle('% difference') +
             scale_y_continuous(labels = scales::percent)
           
           if (input$level != 'global' & length(unique(df[df$statMov > 0, ][[input$level]])) > 1){
@@ -1091,7 +1004,7 @@ shinyServer(function(input, output, session) {
                   axis.title.y = element_blank(),
                   axis.title.x = element_blank()) +
             geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
-            ggtitle('Growth') +
+            ggtitle('% difference') +
             scale_y_continuous(labels = scales::percent)
           
           if (input$level != 'global' & length(unique(df[df$statMov > 0, ][[input$level]])) > 1){
