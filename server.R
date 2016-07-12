@@ -625,7 +625,7 @@ shinyServer(function(input, output, session) {
             ungroup()
           
           dfMain3 <- dfAll %>%
-            inner_join(dfMain1, by = 'YEARMONTH') %>%
+            full_join(dfMain1, by = 'YEARMONTH') %>%
             filter(util_bill < stat) %>%
             group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
             summarise(countCatUnder = n()) %>%
@@ -673,9 +673,9 @@ shinyServer(function(input, output, session) {
       if (input$level == 'global'){
         
         toPlot <- ggplot(aes_string(x = 'YEARMONTH'), data = df) +
-          geom_bar(aes_string(y = 'percUnder', fill = input$grouping), stat = 'identity', position = 'dodge') +
-          geom_bar(aes_string(y = 'percAbove', fill = input$grouping), stat = 'identity', position = 'dodge') +
-          geom_bar(aes_string(y = 'percEqual'), fill = 'black', stat = 'identity', position = 'dodge') +
+          geom_bar(aes_string(y = 'percUnder', fill = input$grouping), stat = 'identity', position = 'dodge', alpha = 0.33) +
+          geom_bar(aes_string(y = 'percAbove', fill = input$grouping), stat = 'identity', position = 'dodge', alpha = 0.33) +
+          geom_bar(aes_string(y = 'percEqual', fill = input$grouping), stat = 'identity', position = 'dodge', alpha = 0.67) +
           geom_hline(yintercept = 0, linetype = 2, size = 1.5, color = 'red') +
           theme(panel.background = element_rect(fill =NA),
                 panel.grid.major = element_line(colour = '#e5e5e5'),
