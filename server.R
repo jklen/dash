@@ -788,10 +788,6 @@ shinyServer(function(input, output, session) {
         }
         
         toPlot <- toPlot +  
-        
-          annotate('text',
-                   x = (1:(length(unique(df[['YEARMONTH']])))) * length(unique(df[[input$grouping]])) - length(unique(df[[input$grouping]]))/2 + 0.5 ,
-                   y = min(df$percUnder) - 0.04, label = unique(df[['YEARMONTH']])) +
           geom_vline(xintercept = seq(length(unique(df[[input$grouping]])) + 0.5,
                                       length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
                                       length(unique(df[[input$grouping]]))),
@@ -804,7 +800,10 @@ shinyServer(function(input, output, session) {
                 axis.ticks.x = element_blank(),
                 axis.line = element_line(colour = '#bdbdbd'),
                 axis.title.y = element_blank(),
-                axis.title.x = element_blank())
+                axis.title.x = element_blank()) +
+          annotate('text',
+                   x = (1:(length(unique(df[['YEARMONTH']])))) * length(unique(df[[input$grouping]])) - length(unique(df[[input$grouping]]))/2 + 0.5 ,
+                   y = min(df$percUnder, na.rm = T) - 0.04, label = unique(df[['YEARMONTH']]))
           
         
       }
