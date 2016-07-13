@@ -696,7 +696,7 @@ shinyServer(function(input, output, session) {
             filter(util_bill < stat) %>%
             group_by_(.dots = lapply(c(input$grouping, input$level, 'YEARMONTH'), as.symbol)) %>%
             summarise(countCatUnder = n()) %>%
-            left_join(dfMain2, by = c(input$grouping, input$level, 'YEARMONTH')) %>%
+            full_join(dfMain2, by = c(input$grouping, input$level, 'YEARMONTH')) %>%
             filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
             mutate(percUnder = countCatUnder/countCat) %>%
             mutate(percEqAbove = 1 - percUnder) %>%
