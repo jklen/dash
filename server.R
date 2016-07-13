@@ -613,34 +613,93 @@ shinyServer(function(input, output, session) {
         
         if (input$level == 'global'){
           
+          # main plot data
+          
           dfMain1 <- dfAll %>%
             group_by_(.dots = lapply('YEARMONTH', as.symbol)) %>%
+            summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
+                             quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+            ungroup()
+          
+          dfMain2 <- dfAll %>%
+            filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+            group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
+            summarise(countCat = n()) %>%
+            ungroup()
+          
+          dfMain <- dfAll %>%
+            filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+            left_join(dfMain1, by = 'YEARMONTH') %>%
+            filter(util_bill < stat) %>%
+            group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
+            summarise(countCatUnder = n()) %>%
+            full_join(dfMain2, by = c(input$grouping, 'YEARMONTH')) %>%
+            ungroup()
+          
+          dfMain$countCatUnder <- ifelse(is.na(dfMain$countCatUnder), 0, dfMain$countCatUnder)
+          
+          dfMain <- dfMain %>%
+            mutate(percUnder = countCatUnder/countCat) %>%
+            mutate(percEqAbove = 1 - percUnder) %>%
+            ungroup()
+          
+          dfMain$percUnder <- dfMain$percUnder * (-1)
+          
+          # overall plot data
+          
+          dfMarg1 <- dfAll %>%
+            group_by() %>%
+            summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
+                                    quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+            ungroup()
+          
+          dfMarg2 <- dfAll %>%
+            filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+            group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
+            summarise(countCat = n()) %>%
+            ungroup()
+          
+          dfMarg <- dfAll %>%
+            filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+            filter(util_bill < dfMarg1$stat) %>%
+            group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
+            summarise(countCatUnder = n()) %>%
+            full_join(dfMarg2, by = input$grouping) %>%
+            ungroup()
+          
+          dfMarg <- dfMarg %>%
+            mutate(percUnder = countCatUnder/countCat) %>%
+            mutate(percEqAbove = 1 - percUnder) %>%
+            ungroup()
+          
+          dfMarg$percUnder <- dfMarg$percUnder * (-1)
+          
+          influenceDF$mainPlot <- dfMain
+          influenceDF$margPlot <- dfMarg
+          influenceDF$testdf <- dfMain
+          
+        } else {
+          
+          dfMain1 <- dfAll %>%
+            group_by_(.dots = lapply(c(input$level, 'YEARMONTH'), as.symbol)) %>%
             summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
                                     quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
             ungroup()
           
           dfMain2 <- dfAll %>%
-            group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
+            group_by_(.dots = lapply(c(input$grouping, input$level, 'YEARMONTH'), as.symbol)) %>%
             summarise(countCat = n()) %>%
             ungroup()
           
-          dfMain3 <- dfAll %>%
-            full_join(dfMain1, by = 'YEARMONTH') %>%
-            filter(util_bill < stat) %>%
-            group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
-            summarise(countCatUnder = n()) %>%
-            full_join(dfMain2, by = c(input$grouping, 'YEARMONTH')) %>%
-            mutate(percUnder = countCatUnder/countCat) %>%
-            ungroup()
-          
           dfMain <- dfAll %>%
-            full_join(dfMain1, by = 'YEARMONTH') %>%
-            filter(util_bill > stat) %>%
-            group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
-            summarise(countCatAbove = n()) %>%
-            full_join(dfMain3, by = c(input$grouping, 'YEARMONTH')) %>%
-            mutate(percAbove = countCatAbove/countCat) %>%
-            mutate(percEqual = (countCat - countCatAbove - countCatUnder)/countCat) %>%
+            full_join(dfMain1, by = c(input$level, 'YEARMONTH')) %>%
+            filter(util_bill < stat) %>%
+            group_by_(.dots = lapply(c(input$grouping, input$level, 'YEARMONTH'), as.symbol)) %>%
+            summarise(countCatUnder = n()) %>%
+            left_join(dfMain2, by = c(input$grouping, input$level, 'YEARMONTH')) %>%
+            filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+            mutate(percUnder = countCatUnder/countCat) %>%
+            mutate(percEqAbove = 1 - percUnder) %>%
             ungroup()
           
           dfMain$percUnder <- dfMain$percUnder * (-1)
@@ -673,9 +732,8 @@ shinyServer(function(input, output, session) {
       if (input$level == 'global'){
         
         toPlot <- ggplot(aes_string(x = 'YEARMONTH'), data = df) +
-          geom_bar(aes_string(y = 'percUnder', fill = input$grouping), stat = 'identity', position = 'dodge', alpha = 0.33) +
-          geom_bar(aes_string(y = 'percAbove', fill = input$grouping), stat = 'identity', position = 'dodge', alpha = 0.33) +
-          geom_bar(aes_string(y = 'percEqual', fill = input$grouping), stat = 'identity', position = 'dodge', alpha = 0.67) +
+          geom_bar(aes_string(y = 'percUnder', fill = input$grouping), stat = 'identity', position = 'dodge', alpha = 0.5) +
+          geom_bar(aes_string(y = 'percEqAbove', fill = input$grouping), stat = 'identity', position = 'dodge', alpha = 0.5) +
           geom_hline(yintercept = 0, linetype = 2, size = 1.5, color = 'red') +
           theme(panel.background = element_rect(fill =NA),
                 panel.grid.major = element_line(colour = '#e5e5e5'),
@@ -683,18 +741,74 @@ shinyServer(function(input, output, session) {
                 axis.title.y = element_blank()) +
           scale_y_continuous(labels = scales::percent)
         
+      } else {
+        
+        toPlot <- ggplot(data = NULL) +
+          geom_bar(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]),
+                              y = 'percUnder',
+                              fill = ifelse(length(unique(df[[input$level]])) > 1, input$level, input$grouping)),
+                   data = df,
+                   stat = 'identity',
+                   position = 'dodge',
+                   alpha = 0.5) +
+          geom_bar(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]),
+                              y = 'percEqAbove',
+                              fill = ifelse(length(unique(df[[input$level]])) > 1, input$level, input$grouping)),
+                   data = df,
+                   stat = 'identity',
+                   position = 'dodge',
+                   alpha = 0.5)
+        
+        if (length(unique(df[[input$level]])) > 1){
+          
+          toPlot <- toPlot +
+            geom_bar(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]),
+                                y = 'maxFill',
+                                color = input$grouping),
+                     fill = 'white',
+                     alpha = 0.01,
+                     stat = 'identity',
+                     position = 'dodge',
+                     data = df %>%
+                       group_by() %>%
+                       summarise(maxFill = max(percEqAbove, na.rm = T)) %>%
+                       cbind(df)) +
+            geom_bar(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]),
+                                y = 'minFill',
+                                color = input$grouping),
+                     fill = 'white',
+                     alpha = 0.01,
+                     stat = 'identity',
+                     position = 'dodge',
+                     data = df %>%
+                       group_by() %>%
+                       summarise(minFill = min(percUnder, na.rm = T)) %>%
+                       cbind(df))
+          
+        }
+        
+        toPlot <- toPlot +  
+        
+          annotate('text',
+                   x = (1:(length(unique(df[['YEARMONTH']])))) * length(unique(df[[input$grouping]])) - length(unique(df[[input$grouping]]))/2 + 0.5 ,
+                   y = min(df$percUnder) - 0.04, label = unique(df[['YEARMONTH']])) +
+          geom_vline(xintercept = seq(length(unique(df[[input$grouping]])) + 0.5,
+                                      length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
+                                      length(unique(df[[input$grouping]]))),
+                     linetype = 2, size = 1) +
+          geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
+          theme(panel.background = element_rect(fill =NA),
+                axis.text.x = element_blank(),
+                panel.grid.major = element_line(colour = '#e5e5e5'),
+                panel.grid.major.x = element_blank(),
+                axis.ticks.x = element_blank(),
+                axis.line = element_line(colour = '#bdbdbd'),
+                axis.title.y = element_blank(),
+                axis.title.x = element_blank())
+          
+        
       }
     
-      # toPlot <- ggplot(aes_string(x = 'YEARMONTH', fill = input$grouping), data = df) +
-      #   geom_bar(aes(y = count_underP), stat = 'identity', position = 'dodge', alpha = 0.5) +
-      #   geom_bar(aes(y = count_aboveP), stat = 'identity', position = 'dodge', alpha = 0.5) +
-      #   geom_hline(yintercept = 0, linetype = 2, size = 1.5, color = 'red') +
-      #   #ylim(c(-1, 1)) +
-      #   theme(panel.background = element_rect(fill =NA),
-      #         panel.grid.major = element_line(colour = '#e5e5e5'),
-      #         axis.line = element_line(colour = '#BDBDBD'),
-      #         axis.title.y = element_blank()) +
-      #   scale_y_continuous(labels = scales::percent)
       
     } else {
       
@@ -714,6 +828,7 @@ shinyServer(function(input, output, session) {
           
           # df <- df[!is.na(df$statMov) & !is.nan(df$statMov) & !is.infinite(df$statMov), ]# because chart is not generated due to dividing by zero result NaN, Inf is misleading on chart
           df$statMov <- ifelse(is.na(df$statMov) | is.nan(df$statMov) | is.infinite(df$statMov), 0, df$statMov)
+          df <- df[df$catShare != 0, ]
 
           toPlot <- 
             ggplot(data = NULL) +
@@ -723,7 +838,7 @@ shinyServer(function(input, output, session) {
                                   fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[df$statMov > 0, ][[input$level]])) == 1), input$grouping, input$level)), 
                        stat = 'identity', 
                        position = 'dodge', 
-                       alpha = 0.8,
+                       alpha = 0.5,
                        data = df) +
               theme(panel.background = element_rect(fill =NA),
                     axis.text.x = element_blank(),
@@ -804,6 +919,7 @@ shinyServer(function(input, output, session) {
     if (input$influence_choice == 'whole'){
       
       df$statDiff <- ifelse(is.na(df$statDiff) | is.nan(df$statDiff) | is.infinite(df$statDiff), 0, df$statDiff)
+      df <- df[df$catShare != 0, ]
 
       toPlot <- 
         ggplot(data = NULL) +
@@ -813,7 +929,7 @@ shinyServer(function(input, output, session) {
                             fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[df$statDiff > 0, ][[input$level]])) == 1), input$grouping, input$level)), 
                  stat = 'identity', 
                  position = 'dodge', 
-                 alpha = 0.8,
+                 alpha = 0.5,
                  data = df) +
         theme(panel.background = element_rect(fill =NA),
               axis.text.x = element_blank(),
@@ -890,6 +1006,8 @@ shinyServer(function(input, output, session) {
     
     if (input$influence_choice == 'whole'){
       
+      df <- df[df$catShare != 0, ]
+      
       toPlot <- 
         ggplot(data = NULL) +
        
@@ -897,7 +1015,7 @@ shinyServer(function(input, output, session) {
                             y = 'catShare', fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[df$catShare > 0, ][[input$level]])) == 1), input$grouping, input$level)), 
                  stat = 'identity', 
                  position = 'dodge', 
-                 alpha = 0.8,
+                 alpha = 0.5,
                  data = df) +
         annotate('text',
                  x = (1:(length(unique(df[['YEARMONTH']])))) * length(unique(df[[input$grouping]])) - length(unique(df[[input$grouping]]))/2 + 0.5 ,
@@ -951,8 +1069,8 @@ shinyServer(function(input, output, session) {
     if (input$influence_choice == 'values'){
     
       toPlot <- ggplot(aes_string(x = input$grouping, fill = input$grouping), data = df) +
-        geom_bar(aes(y = count_underP), stat = 'identity', position = 'dodge', alpha = 0.5) +
-        geom_bar(aes(y = count_aboveP), stat = 'identity', position = 'dodge', alpha = 0.5) +
+        geom_bar(aes(y = percUnder), stat = 'identity', position = 'dodge', alpha = 0.5) +
+        geom_bar(aes(y = percEqAbove), stat = 'identity', position = 'dodge', alpha = 0.5) +
         geom_hline(yintercept = 0, linetype = 2, size = 2, color = 'red') +
         theme(legend.position = 'none',
               panel.background = element_rect(fill =NA),
@@ -993,7 +1111,7 @@ shinyServer(function(input, output, session) {
                                 fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[df$statMov > 0, ][[input$level]])) == 1), input$grouping, input$level)), 
                      stat = 'identity', 
                      position = 'dodge', 
-                     alpha = 0.8,
+                     alpha = 0.5,
                      data = df) +
             theme(panel.background = element_rect(fill =NA),
                   axis.text.x = element_blank(),
@@ -1080,7 +1198,7 @@ shinyServer(function(input, output, session) {
                             fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[df$statDiff > 0, ][[input$level]])) == 1), input$grouping, input$level)), 
                  stat = 'identity', 
                  position = 'dodge', 
-                 alpha = 0.8,
+                 alpha = 0.5,
                  data = df) +
         theme(panel.background = element_rect(fill =NA),
               axis.text.x = element_blank(),
@@ -1159,7 +1277,7 @@ shinyServer(function(input, output, session) {
                             fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[df$catShare > 0, ][[input$level]])) == 1), input$grouping, input$level)), 
                  stat = 'identity', 
                  position = 'dodge', 
-                 alpha = 0.8,
+                 alpha = 0.5,
                  data = df) +
         theme(panel.background = element_rect(fill =NA),
               axis.text.x = element_blank(),
