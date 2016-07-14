@@ -680,6 +680,8 @@ shinyServer(function(input, output, session) {
           
         } else {
           
+          # main plot data
+          
           dfMain1 <- dfAll %>%
             group_by_(.dots = lapply(c(input$level, 'YEARMONTH'), as.symbol)) %>%
             summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
@@ -704,7 +706,34 @@ shinyServer(function(input, output, session) {
           
           dfMain$percUnder <- dfMain$percUnder * (-1)
           
+          # overall plot data
+          
+          dfMarg1 <- dfAll %>%
+            group_by_(.dots = lapply(input$level, as.symbol)) %>%
+            summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
+                                    quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+            ungroup()
+          
+          dfMarg2 <- dfAll %>%
+            group_by_(.dots = lapply(c(input$grouping, input$level), as.symbol)) %>%
+            summarise(countCat = n()) %>%
+            ungroup()
+          
+          dfMarg <- dfAll %>%
+            full_join(dfMarg1, by = input$level) %>%
+            filter(util_bill < stat) %>%
+            group_by_(.dots = lapply(c(input$grouping, input$level), as.symbol)) %>%
+            summarise(countCatUnder = n()) %>%
+            full_join(dfMarg2, by = c(input$grouping, input$level)) %>%
+            filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+            mutate(percUnder = countCatUnder/countCat) %>%
+            mutate(percEqAbove = 1 - percUnder) %>%
+            ungroup()
+          
+          dfMarg$percUnder <- dfMarg$percUnder * (-1)
+          
           influenceDF$mainPlot <- dfMain
+          influenceDF$margPlot <- dfMarg
           influenceDF$testdf <- dfMain
           
         }
@@ -731,15 +760,42 @@ shinyServer(function(input, output, session) {
       
       if (input$level == 'global'){
         
+        seqLine <- df %>%
+          group_by(YEARMONTH) %>%
+          summarise(YMc = n()) %>%
+          mutate(l = cumsum(YMc) + 0.5) %>%
+          ungroup()
+        
+        seqLine <- seqLine[['l']]
+        seqLine <- seqLine[1:(length(seqLine) - 1)]
+        
+      } else {
+        
+        seqLine <- df %>%
+          group_by_(.dots = lapply(c('YEARMONTH', input$grouping), as.symbol)) %>%
+          summarise(c = n()) %>%
+          group_by(YEARMONTH) %>%
+          summarise(YMc = n()) %>%
+          mutate(l = cumsum(YMc) + 0.5) %>%
+          ungroup()
+        
+        seqLine <- seqLine[['l']]
+        seqLine <- seqLine[1:(length(seqLine) - 1)]
+        
+      }
+      
+      if (input$level == 'global'){
+        
         toPlot <- ggplot(aes_string(x = 'YEARMONTH'), data = df) +
           geom_bar(aes_string(y = 'percUnder', fill = input$grouping), stat = 'identity', position = 'dodge', alpha = 0.5) +
           geom_bar(aes_string(y = 'percEqAbove', fill = input$grouping), stat = 'identity', position = 'dodge', alpha = 0.5) +
-          geom_hline(yintercept = 0, linetype = 2, size = 1.5, color = 'red') +
+          geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
           theme(panel.background = element_rect(fill =NA),
                 panel.grid.major = element_line(colour = '#e5e5e5'),
                 axis.line = element_line(colour = '#BDBDBD'),
                 axis.title.y = element_blank()) +
-          scale_y_continuous(labels = scales::percent)
+          scale_y_continuous(labels = scales::percent) +
+          ggtitle('% of values under global statistic')
         
       } else {
         
@@ -788,9 +844,7 @@ shinyServer(function(input, output, session) {
         }
         
         toPlot <- toPlot +  
-          geom_vline(xintercept = seq(length(unique(df[[input$grouping]])) + 0.5,
-                                      length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
-                                      length(unique(df[[input$grouping]]))),
+          geom_vline(xintercept = seqLine,
                      linetype = 2, size = 1) +
           geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
           theme(panel.background = element_rect(fill =NA),
@@ -803,7 +857,9 @@ shinyServer(function(input, output, session) {
                 axis.title.x = element_blank()) +
           annotate('text',
                    x = (1:(length(unique(df[['YEARMONTH']])))) * length(unique(df[[input$grouping]])) - length(unique(df[[input$grouping]]))/2 + 0.5 ,
-                   y = min(df$percUnder, na.rm = T) - 0.04, label = unique(df[['YEARMONTH']]))
+                   y = min(df$percUnder, na.rm = T) - 0.04, label = unique(df[['YEARMONTH']])) +
+          scale_y_continuous(labels = scales::percent) +
+          ggtitle('% of values under statistic of selected level')
           
         
       }
@@ -825,9 +881,37 @@ shinyServer(function(input, output, session) {
         
         if (input$influence_choice == 'whole'){
           
-          # df <- df[!is.na(df$statMov) & !is.nan(df$statMov) & !is.infinite(df$statMov), ]# because chart is not generated due to dividing by zero result NaN, Inf is misleading on chart
+          df <- df[!is.na(df$statMov) & !is.nan(df$statMov) & !is.infinite(df$statMov), ]# because chart is not generated due to dividing by zero result NaN, Inf is misleading on chart
           df$statMov <- ifelse(is.na(df$statMov) | is.nan(df$statMov) | is.infinite(df$statMov), 0, df$statMov)
           df <- df[df$catShare != 0, ]
+          
+          if (input$level == 'global'){
+          
+            seqLine <- df %>%
+              group_by(YEARMONTH) %>%
+              summarise(YMc = n()) %>%
+              mutate(l = cumsum(YMc) + 0.5) %>%
+              ungroup()
+            
+            seqLine <- seqLine[['l']]
+            seqLine <- seqLine[1:(length(seqLine) - 1)]
+            
+          } else {
+            
+            seqLine <- df %>%
+              group_by_(.dots = lapply(c('YEARMONTH', input$grouping), as.symbol)) %>%
+              summarise(c = n()) %>%
+              group_by(YEARMONTH) %>%
+              summarise(YMc = n()) %>%
+              mutate(l = cumsum(YMc) + 0.5) %>%
+              ungroup()
+            
+            seqLine <- seqLine[['l']]
+            seqLine <- seqLine[1:(length(seqLine) - 1)]
+            
+          }
+          
+          #cat(file=stderr(), "---", seqLine) 
 
           toPlot <- 
             ggplot(data = NULL) +
@@ -847,10 +931,11 @@ shinyServer(function(input, output, session) {
                     axis.line = element_line(colour = '#bdbdbd'),
                     axis.title.y = element_blank(),
                     axis.title.x = element_blank()) +
-              geom_vline(xintercept = seq(length(unique(df[[input$grouping]])) + 0.5,
-                                           length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
-                                           length(unique(df[[input$grouping]]))),
-                          linetype = 2, size = 1) +
+              geom_vline(xintercept = seqLine, linetype = 2, size = 1) +
+              # geom_vline(xintercept = seq(length(unique(df[[input$grouping]])) + 0.5,
+              #                              length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
+              #                              length(unique(df[[input$grouping]]))),
+              #             linetype = 2, size = 1) +
               geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
               ggtitle('% difference') +
             scale_y_continuous(labels = scales::percent)
@@ -914,12 +999,39 @@ shinyServer(function(input, output, session) {
       df <- df[!(df[[input$level]] %in% input$influence_hide), ]
       
     }
-
+    
     if (input$influence_choice == 'whole'){
       
+      df <- df[!is.na(df$statMov) & !is.nan(df$statMov) & !is.infinite(df$statMov), ]
       df$statDiff <- ifelse(is.na(df$statDiff) | is.nan(df$statDiff) | is.infinite(df$statDiff), 0, df$statDiff)
       df <- df[df$catShare != 0, ]
-
+      
+      if (input$level == 'global'){
+        
+        seqLine <- df %>%
+          group_by(YEARMONTH) %>%
+          summarise(YMc = n()) %>%
+          mutate(l = cumsum(YMc) + 0.5) %>%
+          ungroup()
+        
+        seqLine <- seqLine[['l']]
+        seqLine <- seqLine[1:(length(seqLine) - 1)]
+        
+      } else {
+        
+        seqLine <- df %>%
+          group_by_(.dots = lapply(c('YEARMONTH', input$grouping), as.symbol)) %>%
+          summarise(c = n()) %>%
+          group_by(YEARMONTH) %>%
+          summarise(YMc = n()) %>%
+          mutate(l = cumsum(YMc) + 0.5) %>%
+          ungroup()
+        
+        seqLine <- seqLine[['l']]
+        seqLine <- seqLine[1:(length(seqLine) - 1)]
+        
+      }
+      
       toPlot <- 
         ggplot(data = NULL) +
         
@@ -938,9 +1050,7 @@ shinyServer(function(input, output, session) {
               axis.line = element_line(colour = '#bdbdbd'),
               axis.title.y = element_blank(),
               axis.title.x = element_blank()) +
-        geom_vline(xintercept = seq(length(unique(df[[input$grouping]])) + 0.5,
-                                    length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
-                                    length(unique(df[[input$grouping]]))),
+        geom_vline(xintercept = seqLine,
                    linetype = 2, size = 1) +
         geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
         ggtitle('Difference')
@@ -1005,7 +1115,34 @@ shinyServer(function(input, output, session) {
     
     if (input$influence_choice == 'whole'){
       
+      df <- df[!is.na(df$statMov) & !is.nan(df$statMov) & !is.infinite(df$statMov), ]
       df <- df[df$catShare != 0, ]
+      
+      if (input$level == 'global'){
+        
+        seqLine <- df %>%
+          group_by(YEARMONTH) %>%
+          summarise(YMc = n()) %>%
+          mutate(l = cumsum(YMc) + 0.5) %>%
+          ungroup()
+        
+        seqLine <- seqLine[['l']]
+        seqLine <- seqLine[1:(length(seqLine) - 1)]
+        
+      } else {
+        
+        seqLine <- df %>%
+          group_by_(.dots = lapply(c('YEARMONTH', input$grouping), as.symbol)) %>%
+          summarise(c = n()) %>%
+          group_by(YEARMONTH) %>%
+          summarise(YMc = n()) %>%
+          mutate(l = cumsum(YMc) + 0.5) %>%
+          ungroup()
+        
+        seqLine <- seqLine[['l']]
+        seqLine <- seqLine[1:(length(seqLine) - 1)]
+        
+      }
       
       toPlot <- 
         ggplot(data = NULL) +
@@ -1027,9 +1164,7 @@ shinyServer(function(input, output, session) {
               axis.line = element_line(colour = '#bdbdbd'),
               axis.title.y = element_blank(),
               axis.title.x = element_blank()) +
-        geom_vline(xintercept = seq(length(unique(df[[input$grouping]])) + 0.5,
-                                    length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
-                                    length(unique(df[[input$grouping]]))),
+        geom_vline(xintercept = seqLine,
                    linetype = 2, size = 1) +
         ggtitle('Share') +
         scale_y_continuous(labels = scales::percent)
@@ -1063,20 +1198,84 @@ shinyServer(function(input, output, session) {
     
     df <- influenceDF$margPlot
     
-    
-    
     if (input$influence_choice == 'values'){
+      
+      if (input$level == 'global'){
+        
+        toPlot <- ggplot(aes_string(x = input$grouping, fill = input$grouping), data = df) +
+          geom_bar(aes(y = percUnder), stat = 'identity', position = 'dodge', alpha = 0.5) +
+          geom_bar(aes(y = percEqAbove), stat = 'identity', position = 'dodge', alpha = 0.5) +
+          geom_hline(yintercept = 0, linetype = 2, size = 2, color = 'red') +
+          theme(legend.position = 'none',
+                panel.background = element_rect(fill =NA),
+                panel.grid.major = element_line(colour = '#e5e5e5'),
+                axis.line = element_line(colour = '#BDBDBD'),
+                axis.title.y = element_blank()) +
+          scale_y_continuous(labels = scales::percent) +
+          ggtitle('% of values under global statistic')
+        
+      } else {
+        
+        toPlot <- ggplot(data = NULL) +
+          geom_bar(aes_string(x = input$grouping,
+                              y = 'percUnder',
+                              fill = ifelse(length(unique(df[[input$level]])) > 1, input$level, input$grouping)),
+                   data = df,
+                   stat = 'identity',
+                   position = 'dodge',
+                   alpha = 0.5) +
+          geom_bar(aes_string(x = input$grouping,
+                              y = 'percEqAbove',
+                              fill = ifelse(length(unique(df[[input$level]])) > 1, input$level, input$grouping)),
+                   data = df,
+                   stat = 'identity',
+                   position = 'dodge',
+                   alpha = 0.5)
+        
+        if (length(unique(df[[input$level]])) > 1){
+          
+          toPlot <- toPlot +
+            geom_bar(aes_string(x = input$grouping,
+                                y = 'maxFill',
+                                color = input$grouping),
+                     fill = 'white',
+                     alpha = 0.01,
+                     stat = 'identity',
+                     position = 'dodge',
+                     data = df %>%
+                       group_by() %>%
+                       summarise(maxFill = max(percEqAbove, na.rm = T)) %>%
+                       cbind(df)) +
+            geom_bar(aes_string(x = input$grouping,
+                                y = 'minFill',
+                                color = input$grouping),
+                     fill = 'white',
+                     alpha = 0.01,
+                     stat = 'identity',
+                     position = 'dodge',
+                     data = df %>%
+                       group_by() %>%
+                       summarise(minFill = min(percUnder, na.rm = T)) %>%
+                       cbind(df))
+          
+        }
+        
+        toPlot <- toPlot +
+          geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
+          theme(panel.background = element_rect(fill =NA),
+                axis.text.x = element_blank(),
+                panel.grid.major = element_line(colour = '#e5e5e5'),
+                panel.grid.major.x = element_blank(),
+                axis.ticks.x = element_blank(),
+                axis.line = element_line(colour = '#bdbdbd'),
+                axis.title.y = element_blank(),
+                axis.title.x = element_blank()) +
+          ggtitle('% of values under statistic of selected level') +
+          scale_y_continuous(labels = scales::percent)
+        
+      }
     
-      toPlot <- ggplot(aes_string(x = input$grouping, fill = input$grouping), data = df) +
-        geom_bar(aes(y = percUnder), stat = 'identity', position = 'dodge', alpha = 0.5) +
-        geom_bar(aes(y = percEqAbove), stat = 'identity', position = 'dodge', alpha = 0.5) +
-        geom_hline(yintercept = 0, linetype = 2, size = 2, color = 'red') +
-        theme(legend.position = 'none',
-              panel.background = element_rect(fill =NA),
-              panel.grid.major = element_line(colour = '#e5e5e5'),
-              axis.line = element_line(colour = '#BDBDBD'),
-              axis.title.y = element_blank()) +
-        scale_y_continuous(labels = scales::percent)
+      
     } else {
       
       if (input$influence_choice == 'share'){
@@ -1101,6 +1300,7 @@ shinyServer(function(input, output, session) {
           }
           
           df$statMov <- ifelse(is.na(df$statMov) | is.nan(df$statMov) | is.infinite(df$statMov), 0, df$statMov)
+          df <- df[df$catShare != 0, ]
           
           toPlot <- 
             ggplot(data = NULL) +
@@ -1188,6 +1388,7 @@ shinyServer(function(input, output, session) {
     if (input$influence_choice == 'whole'){
       
       df$statDiff <- ifelse(is.na(df$statDiff) | is.nan(df$statDiff) | is.infinite(df$statDiff), 0, df$statDiff)
+      df <- df[df$catShare != 0, ]
       
       toPlot <- 
         ggplot(data = NULL) +
@@ -1267,6 +1468,8 @@ shinyServer(function(input, output, session) {
     }
     
     if (input$influence_choice == 'whole'){
+      
+      df <- df[df$catShare != 0, ]
       
       toPlot <- 
         ggplot(data = NULL) +
