@@ -738,6 +738,74 @@ shinyServer(function(input, output, session) {
           
         }
         
+      } else {
+        
+        if (input$influence_choice == 'share'){
+          
+          if (input$level == 'global'){
+            
+            # main plot data
+            
+            dfMain1 <- dfAll %>%
+              group_by(YEARMONTH) %>%
+              summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
+                                      quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+              ungroup()
+            
+            dfMain2 <- dfAll %>%
+              inner_join(dfMain1, by = 'YEARMONTH') %>%
+              filter(util_bill < stat) %>%
+              group_by(YEARMONTH) %>%
+              summarise(countAll = n()) %>%
+              ungroup()
+            
+            dfMain <- dfAll %>%
+              full_join(dfMain1, by = 'YEARMONTH') %>%
+              filter(util_bill < stat) %>%
+              group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
+              summarise(countCat = n()) %>%
+              full_join(dfMain2, by = 'YEARMONTH') %>%
+              filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+              mutate(percCat = countCat/countAll) %>%
+              ungroup()
+            
+            
+            
+          } else {
+            
+            # main plot data
+            
+            dfMain1 <- dfAll %>%
+              group_by_(.dots = lapply(c(input$level, 'YEARMONTH'), as.symbol)) %>%
+              summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
+                                      quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+              ungroup()
+            
+            dfMain2 <- dfAll %>%
+              inner_join(dfMain1, by = c(input$level, 'YEARMONTH')) %>%
+              filter(util_bill < stat) %>%
+              group_by_(.dots = lapply(c(input$level, 'YEARMONTH'), as.symbol)) %>%
+              summarise(countAll = n()) %>%
+              ungroup()
+            
+            dfMain <- dfAll %>%
+              full_join(dfMain1, by = c(input$level, 'YEARMONTH')) %>%
+              filter(util_bill < stat) %>%
+              group_by_(.dots = lapply(c(input$grouping, input$level, 'YEARMONTH'), as.symbol)) %>%
+              summarise(countCat = n()) %>%
+              full_join(dfMain2, by = c(input$level, 'YEARMONTH')) %>%
+              filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+              mutate(percCat = countCat/countAll) %>%
+              ungroup()
+
+            
+          }
+          
+          influenceDF$mainPlot <- dfMain
+          influenceDF$testdf <- dfMain
+          
+        }
+        
       }
       
     }
@@ -771,17 +839,20 @@ shinyServer(function(input, output, session) {
         
       } else {
         
-        seqLine <- df %>%
+        se <- df %>%
           group_by_(.dots = lapply(c('YEARMONTH', input$grouping), as.symbol)) %>%
           summarise(c = n()) %>%
           group_by(YEARMONTH) %>%
           summarise(YMc = n()) %>%
           mutate(l = cumsum(YMc) + 0.5) %>%
+          mutate(a = l - YMc/2) %>%
           ungroup()
         
-        seqLine <- seqLine[['l']]
+        seqLine <- se[['l']]
         seqLine <- seqLine[1:(length(seqLine) - 1)]
         
+        seqYM <- se[['a']]
+
       }
       
       if (input$level == 'global'){
@@ -856,8 +927,8 @@ shinyServer(function(input, output, session) {
                 axis.title.y = element_blank(),
                 axis.title.x = element_blank()) +
           annotate('text',
-                   x = (1:(length(unique(df[['YEARMONTH']])))) * length(unique(df[[input$grouping]])) - length(unique(df[[input$grouping]]))/2 + 0.5 ,
-                   y = min(df$percUnder, na.rm = T) - 0.04, label = unique(df[['YEARMONTH']])) +
+                   x = seqYM,
+                   y = min(df$percUnder, na.rm = T) - 0.04, label = unique(df[['YEARMONTH']])[order(unique(df[['YEARMONTH']]))]) +
           scale_y_continuous(labels = scales::percent) +
           ggtitle('% of values under statistic of selected level')
           
@@ -869,13 +940,91 @@ shinyServer(function(input, output, session) {
       
       if (input$influence_choice == 'share'){
         
-        toPlot <- ggplot(aes_string(x = 'YEARMONTH', fill = input$grouping), data = df) +
-          geom_bar(aes(y = share_under), stat = 'identity', position = 'dodge', alpha = 0.5) +
-          theme(panel.background = element_rect(fill =NA),
-                panel.grid.major = element_line(colour = '#e5e5e5'),
-                axis.line = element_line(colour = '#BDBDBD'),
-                axis.title.y = element_blank()) +
-          scale_y_continuous(labels = scales::percent)
+        if (input$level == 'global'){
+          
+          seqLine <- df %>%
+            group_by(YEARMONTH) %>%
+            summarise(YMc = n()) %>%
+            mutate(l = cumsum(YMc) + 0.5) %>%
+            ungroup()
+          
+          seqLine <- seqLine[['l']]
+          seqLine <- seqLine[1:(length(seqLine) - 1)]
+          
+        } else {
+          
+          se <- df %>%
+            group_by_(.dots = lapply(c('YEARMONTH', input$grouping), as.symbol)) %>%
+            summarise(c = n()) %>%
+            group_by(YEARMONTH) %>%
+            summarise(YMc = n()) %>%
+            mutate(l = cumsum(YMc) + 0.5) %>%
+            mutate(a = l - YMc/2) %>%
+            ungroup()
+          
+          seqLine <- se[['l']]
+          seqLine <- seqLine[1:(length(seqLine) - 1)]
+          
+          seqYM <- se[['a']]
+          
+        }
+        
+        if (input$level == 'global'){
+        
+          toPlot <- ggplot(aes_string(x = 'YEARMONTH', fill = input$grouping), data = df) +
+            geom_bar(aes(y = percCat), stat = 'identity', position = 'dodge', alpha = 0.5) +
+            theme(panel.background = element_rect(fill =NA),
+                  panel.grid.major = element_line(colour = '#e5e5e5'),
+                  axis.line = element_line(colour = '#BDBDBD'),
+                  axis.title.y = element_blank()) +
+            scale_y_continuous(labels = scales::percent)
+          
+        } else {
+          
+          toPlot <- ggplot(data = NULL) +
+            geom_bar(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]),
+                                y = 'percCat',
+                                fill = ifelse(length(unique(df[[input$level]])) > 1, input$level, input$grouping)),
+                     data = df,
+                     stat = 'identity',
+                     position = 'dodge',
+                     alpha = 0.5)
+          
+          if (length(unique(df[[input$level]])) > 1){
+            
+            toPlot <- toPlot +
+              geom_bar(aes_string(x = interaction(df[[input$grouping]], df[['YEARMONTH']]),
+                                  y = 'maxFill',
+                                  color = input$grouping),
+                       fill = 'white',
+                       alpha = 0.01,
+                       stat = 'identity',
+                       position = 'dodge',
+                       data = df %>%
+                         group_by() %>%
+                         summarise(maxFill = max(percCat, na.rm = T)) %>%
+                         cbind(df)) 
+            
+          }
+        
+          toPlot <- toPlot +  
+            geom_vline(xintercept = seqLine,
+                       linetype = 2, size = 1) +
+            theme(panel.background = element_rect(fill =NA),
+                  axis.text.x = element_blank(),
+                  panel.grid.major = element_line(colour = '#e5e5e5'),
+                  panel.grid.major.x = element_blank(),
+                  axis.ticks.x = element_blank(),
+                  axis.line = element_line(colour = '#bdbdbd'),
+                  axis.title.y = element_blank(),
+                  axis.title.x = element_blank()) +
+            annotate('text',
+                     x = seqYM,
+                     y = max(df$percCat) * (-0.05), label = unique(df[['YEARMONTH']])[order(unique(df[['YEARMONTH']]))]) +
+            scale_y_continuous(labels = scales::percent) +
+            ggtitle('% share from values under statistic of selected level')
+          
+        }
         
       } else {
         
@@ -886,28 +1035,34 @@ shinyServer(function(input, output, session) {
           df <- df[df$catShare != 0, ]
           
           if (input$level == 'global'){
-          
-            seqLine <- df %>%
+            
+            se <- df %>%
               group_by(YEARMONTH) %>%
               summarise(YMc = n()) %>%
               mutate(l = cumsum(YMc) + 0.5) %>%
+              mutate(a = l - YMc/2) %>%
               ungroup()
             
-            seqLine <- seqLine[['l']]
+            seqLine <- se[['l']]
             seqLine <- seqLine[1:(length(seqLine) - 1)]
+            
+            seqYM <- se[['a']]
             
           } else {
             
-            seqLine <- df %>%
+            se <- df %>%
               group_by_(.dots = lapply(c('YEARMONTH', input$grouping), as.symbol)) %>%
               summarise(c = n()) %>%
               group_by(YEARMONTH) %>%
               summarise(YMc = n()) %>%
               mutate(l = cumsum(YMc) + 0.5) %>%
+              mutate(a = l - YMc/2) %>%
               ungroup()
             
-            seqLine <- seqLine[['l']]
+            seqLine <- se[['l']]
             seqLine <- seqLine[1:(length(seqLine) - 1)]
+            
+            seqYM <- se[['a']]
             
           }
           
@@ -932,10 +1087,6 @@ shinyServer(function(input, output, session) {
                     axis.title.y = element_blank(),
                     axis.title.x = element_blank()) +
               geom_vline(xintercept = seqLine, linetype = 2, size = 1) +
-              # geom_vline(xintercept = seq(length(unique(df[[input$grouping]])) + 0.5,
-              #                              length(unique(interaction(df[[input$grouping]], df[['YEARMONTH']]))),
-              #                              length(unique(df[[input$grouping]]))),
-              #             linetype = 2, size = 1) +
               geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
               ggtitle('% difference') +
             scale_y_continuous(labels = scales::percent)
@@ -1120,27 +1271,33 @@ shinyServer(function(input, output, session) {
       
       if (input$level == 'global'){
         
-        seqLine <- df %>%
+        se <- df %>%
           group_by(YEARMONTH) %>%
           summarise(YMc = n()) %>%
           mutate(l = cumsum(YMc) + 0.5) %>%
+          mutate(a = l - YMc/2) %>%
           ungroup()
         
-        seqLine <- seqLine[['l']]
+        seqLine <- se[['l']]
         seqLine <- seqLine[1:(length(seqLine) - 1)]
+        
+        seqYM <- se[['a']]
         
       } else {
         
-        seqLine <- df %>%
+        se <- df %>%
           group_by_(.dots = lapply(c('YEARMONTH', input$grouping), as.symbol)) %>%
           summarise(c = n()) %>%
           group_by(YEARMONTH) %>%
           summarise(YMc = n()) %>%
           mutate(l = cumsum(YMc) + 0.5) %>%
+          mutate(a = l - YMc/2) %>%
           ungroup()
         
-        seqLine <- seqLine[['l']]
+        seqLine <- se[['l']]
         seqLine <- seqLine[1:(length(seqLine) - 1)]
+        
+        seqYM <- se[['a']]
         
       }
       
@@ -1154,8 +1311,8 @@ shinyServer(function(input, output, session) {
                  alpha = 0.5,
                  data = df) +
         annotate('text',
-                 x = (1:(length(unique(df[['YEARMONTH']])))) * length(unique(df[[input$grouping]])) - length(unique(df[[input$grouping]]))/2 + 0.5 ,
-                 y = - 0.02, label = unique(df[['YEARMONTH']])) +
+                 x = seqYM ,
+                 y = max(df$catShare) * (-0.05), label = unique(df[['YEARMONTH']])) +
         theme(panel.background = element_rect(fill =NA),
               axis.text.x = element_blank(),
               panel.grid.major = element_line(colour = '#e5e5e5'),
