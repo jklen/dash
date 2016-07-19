@@ -753,23 +753,58 @@ shinyServer(function(input, output, session) {
               ungroup()
             
             dfMain2 <- dfAll %>%
-              inner_join(dfMain1, by = 'YEARMONTH') %>%
+              full_join(dfMain1, by = 'YEARMONTH') %>%
               filter(util_bill < stat) %>%
               group_by(YEARMONTH) %>%
-              summarise(countAll = n()) %>%
+              summarise(countAllUnder = n()) %>%
+              ungroup()
+            
+            dfMain3 <- dfAll %>%
+              group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
+              summarise(countCatAll = n()) %>%
               ungroup()
             
             dfMain <- dfAll %>%
               full_join(dfMain1, by = 'YEARMONTH') %>%
               filter(util_bill < stat) %>%
               group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
-              summarise(countCat = n()) %>%
+              summarise(countCatUnder = n()) %>%
               full_join(dfMain2, by = 'YEARMONTH') %>%
+              full_join(dfMain3, by = c(input$grouping, 'YEARMONTH')) %>%
               filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
-              mutate(percCat = countCat/countAll) %>%
+              mutate(percCat = countCatUnder/countAllUnder) %>%
               ungroup()
             
+            # overall plot data
             
+            dfMarg1 <- dfAll %>%
+              group_by() %>%
+              summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
+                                      quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+              ungroup()
+            
+            dfMarg2 <- dfAll %>%
+              cbind(dfMarg1) %>%
+              filter(util_bill < stat) %>%
+              group_by() %>%
+              summarise(countAllUnder = n()) %>%
+              ungroup()
+            
+            dfMarg3 <- dfAll %>%
+              group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
+              summarise(countCatAll = n()) %>%
+              ungroup()
+            
+            dfMarg <- dfAll %>%
+              cbind(dfMarg1) %>%
+              filter(util_bill < stat) %>%
+              group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
+              summarise(countCatUnder = n()) %>%
+              cbind(dfMarg2) %>%
+              full_join(dfMarg3, by = input$grouping) %>%
+              filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+              mutate(percCat = countCatUnder/countAllUnder) %>%
+              ungroup()
             
           } else {
             
@@ -785,23 +820,61 @@ shinyServer(function(input, output, session) {
               inner_join(dfMain1, by = c(input$level, 'YEARMONTH')) %>%
               filter(util_bill < stat) %>%
               group_by_(.dots = lapply(c(input$level, 'YEARMONTH'), as.symbol)) %>%
-              summarise(countAll = n()) %>%
+              summarise(countAllUnder = n()) %>%
+              ungroup()
+            
+            dfMain3 <- dfAll %>%
+              group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
+              summarise(countCatAll = n()) %>%
               ungroup()
             
             dfMain <- dfAll %>%
               full_join(dfMain1, by = c(input$level, 'YEARMONTH')) %>%
               filter(util_bill < stat) %>%
               group_by_(.dots = lapply(c(input$grouping, input$level, 'YEARMONTH'), as.symbol)) %>%
-              summarise(countCat = n()) %>%
+              summarise(countCatUnder = n()) %>%
               full_join(dfMain2, by = c(input$level, 'YEARMONTH')) %>%
+              full_join(dfMain3, by = c(input$grouping, 'YEARMONTH')) %>%
               filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
-              mutate(percCat = countCat/countAll) %>%
+              mutate(percCat = countCatUnder/countAllUnder) %>%
+              ungroup()
+            
+            # overall plot data
+            
+            dfMarg1 <- dfAll %>%
+              group_by_(.dots = lapply(input$level, as.symbol)) %>%
+              summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
+                                      quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+              ungroup()
+            
+            dfMarg2 <- dfAll %>%
+              inner_join(dfMarg1, by = input$level) %>%
+              filter(util_bill < stat) %>%
+              group_by_(.dots = lapply(input$level, as.symbol)) %>%
+              summarise(countAllUnder = n()) %>%
+              ungroup()
+            
+            dfMarg3 <- dfAll %>%
+              group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
+              summarise(countCatAll = n()) %>%
+              ungroup()
+            
+            dfMarg <- dfAll %>%
+              full_join(dfMarg1, by = input$level) %>%
+              filter(util_bill < stat) %>%
+              group_by_(.dots = lapply(c(input$grouping, input$level), as.symbol)) %>%
+              summarise(countCatUnder = n()) %>%
+              full_join(dfMarg2, by = input$level) %>%
+              full_join(dfMarg3, by = input$grouping) %>%
+              filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+              mutate(percCat = countCatUnder/countAllUnder) %>%
               ungroup()
 
             
           }
           
           influenceDF$mainPlot <- dfMain
+          influenceDF$margPlot <- dfMarg
           influenceDF$testdf <- dfMain
           
         }
@@ -940,6 +1013,8 @@ shinyServer(function(input, output, session) {
       
       if (input$influence_choice == 'share'){
         
+        df$percCat <- ifelse(is.na(df$percCat), 0, df$percCat)
+        
         if (input$level == 'global'){
           
           seqLine <- df %>%
@@ -977,7 +1052,8 @@ shinyServer(function(input, output, session) {
                   panel.grid.major = element_line(colour = '#e5e5e5'),
                   axis.line = element_line(colour = '#BDBDBD'),
                   axis.title.y = element_blank()) +
-            scale_y_continuous(labels = scales::percent)
+            scale_y_continuous(labels = scales::percent) +
+            ggtitle('% share from values under global statistic')
           
         } else {
           
@@ -1357,6 +1433,12 @@ shinyServer(function(input, output, session) {
     
     if (input$influence_choice == 'values'){
       
+      if (!is.null(input$influence_hide)){
+        
+        df <- df[!(df[[input$level]] %in% input$influence_hide), ]
+        
+      }
+      
       if (input$level == 'global'){
         
         toPlot <- ggplot(aes_string(x = input$grouping, fill = input$grouping), data = df) +
@@ -1437,14 +1519,64 @@ shinyServer(function(input, output, session) {
       
       if (input$influence_choice == 'share'){
         
-        toPlot <- ggplot(aes_string(x = input$grouping, fill = input$grouping), data = df) +
-          geom_bar(aes(y = share_under), stat = 'identity', position = 'dodge', alpha = 0.5) +
-          theme(legend.position = 'none',
-                panel.background = element_rect(fill =NA),
-                panel.grid.major = element_line(colour = '#e5e5e5'),
-                axis.line = element_line(colour = '#BDBDBD'),
-                axis.title.y = element_blank()) +
-          scale_y_continuous(labels = scales::percent)
+        if (!is.null(input$influence_hide)){
+          
+          df <- df[!(df[[input$level]] %in% input$influence_hide), ]
+          
+        }
+        
+        if (input$level == 'global'){
+        
+          toPlot <- ggplot(aes_string(x = input$grouping, fill = input$grouping), data = df) +
+            geom_bar(aes(y = percCat), stat = 'identity', position = 'dodge', alpha = 0.5) +
+            theme(legend.position = 'none',
+                  panel.background = element_rect(fill =NA),
+                  panel.grid.major = element_line(colour = '#e5e5e5'),
+                  axis.line = element_line(colour = '#BDBDBD'),
+                  axis.title.y = element_blank()) +
+            scale_y_continuous(labels = scales::percent)
+          
+        } else {
+          
+          toPlot <- 
+            ggplot(data = NULL) +
+            
+            geom_bar(aes_string(x = input$grouping, 
+                                y = 'percCat', 
+                                fill = ifelse(length(unique(df[df$catShare > 0, ][[input$level]])) == 1, input$grouping, input$level)), 
+                     stat = 'identity', 
+                     position = 'dodge', 
+                     alpha = 0.5,
+                     data = df) +
+            theme(panel.background = element_rect(fill =NA),
+                  axis.text.x = element_blank(),
+                  panel.grid.major = element_line(colour = '#e5e5e5'),
+                  panel.grid.major.x = element_blank(),
+                  axis.ticks.x = element_blank(),
+                  axis.line = element_line(colour = '#bdbdbd'),
+                  axis.title.y = element_blank(),
+                  axis.title.x = element_blank()) +
+            ggtitle('% share from values under statistic of selected level') +
+            scale_y_continuous(labels = scales::percent)
+          
+          if (length(unique(df[df$percCat > 0, ][[input$level]])) > 1){
+            
+            toPlot <- toPlot +
+              
+              geom_bar(stat = 'identity',
+                       position = 'dodge',
+                       aes_string(x = input$grouping, 
+                                  y = 'maxShare', 
+                                  colour = input$grouping), 
+                       data = df %>%
+                         group_by() %>%
+                         summarise(maxShare = max(percCat, na.rm = T)) %>%
+                         cbind(df),
+                       alpha = 0.01,
+                       fill = 'white') 
+          }
+          
+        }
         
       } else {
         
