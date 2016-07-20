@@ -1804,6 +1804,20 @@ shinyServer(function(input, output, session) {
     
   })
   
+  output$influence_table <- DT:: renderDataTable({
+    
+    if (input$influence_table_choice == 'month'){
+      
+      influenceDF$mainPlot
+      
+    } else {
+      
+      influenceDF$margPlot
+      
+    }
+    
+  })
+  
   output$Utilization_marginal1 <- renderPlot({
     
     df <- dfToPlot$df

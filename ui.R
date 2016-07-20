@@ -16,7 +16,7 @@ library(colorspace)
 
 shinyUI(fluidPage(theme = shinytheme("cerulean"),
                   
-                  titlePanel("Utilization"),
+                  titlePanel("User utilization"),
                   
                   sidebarPanel(width = 3,
                                
@@ -323,6 +323,18 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                             ),
                                                              
                                                             tabPanel('Table',
+                                                                     
+                                                                     absolutePanel(top = 45,
+                                                                                   left = 260,
+                                                                                   
+                                                                                  selectInput('influence_table_choice',
+                                                                                              label = NULL,
+                                                                                              choices = c('By month' = 'month',
+                                                                                                          'Overall' = 'overall'),
+                                                                                              selected = 'month',
+                                                                                              width = '120px',
+                                                                                              multiple = F)
+                                                                     ),
                                                                      
                                                                      fluidRow(DT::dataTableOutput('influence_table'))
                                                                      
