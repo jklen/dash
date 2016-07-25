@@ -97,6 +97,57 @@ shinyServer(function(input, output, session) {
     
   })
   
+  output$filterOutUI <- renderUI({
+    
+    req(input$level)
+    
+
+    l <- c('Global' = 'global',
+           'Geo' = 'GEO_NAME',
+           'Organization' = 'ORG_NAME',
+           'Department' = 'DEPT_NAME',
+           'User' = 'USER_NAME')
+    
+    l <- l[(match(input$level, l) + 1):length(l)]
+    l <- c('None' = 'none', l)
+    
+    selectInput('filterOut',
+                label = 'Filter out',
+                choices = l,
+                multiple = F)
+    
+  })
+  
+  output$filterOutUnitUI <- renderUI({
+    
+    req(input$filterOut)
+    
+    df <- pass_df()
+    
+    if (input$filterOut != 'none'){
+    
+      if (is.null(input$units)){
+        
+        funits <- unique(df[[input$filterOut]])
+        
+      } else {
+        
+        funits <- unique(df[!(df[[input$filterOut]] %in% input$units),][[input$filterOut]])
+        
+      }
+      
+      selectInput('filterOutUnit',
+                  label = NULL,
+                  choices = funits,
+                  multiple = T,
+                  selectize = T)
+    
+    }  
+      
+  })
+  
+ 
+  
   # rendering listbox of possible color variables in Inputs tab
   
   output$util_input_color <- renderUI({
@@ -427,12 +478,18 @@ shinyServer(function(input, output, session) {
     t
   })
   
-  observeEvent(c(input$units, input$influenceOpts, input$influence_choice, input$influenceQuantile, input$level), {
+  observeEvent(c(input$units, input$influenceOpts, input$influence_choice, input$influenceQuantile, input$level, input$filterOut, input$filterOutUnit), {
     
     req(dfToPlot, input$units)
     
     # df <- dfToPlot$df
     dfAll <- pass_df()
+    
+    if (input$filterOut != 'none' & !is.null(input$filterOutUnit)){
+    
+      dfAll <- dfAll[!(dfAll[[input$filterOut]] %in% input$filterOutUnit), ]
+      
+    }
     
     if (input$influence_choice == 'whole'){
       

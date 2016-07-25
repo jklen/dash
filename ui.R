@@ -53,6 +53,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                 uiOutput('reac_units')
                                ),
                                
+
                                conditionalPanel(condition = "input.tabs_1 == 'Group influence'",
                                                 
                                                 selectInput('influence_choice',
@@ -63,12 +64,14 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                             multiple = F,
                                                             label = 'Measure',
                                                             selected = '1'),
-
                                                                  
                                                 uiOutput('levelUI'),
+                                                
+                                                uiOutput('filterOutUI'),
+                                                
+                                                uiOutput('filterOutUnitUI'),
                                                
                                                 uiOutput('influence_hideUI'),
-                              
                                                 
                                                 selectInput(inputId = 'influenceOpts',
                                                             label = 'Statistic',
