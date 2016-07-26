@@ -114,7 +114,8 @@ shinyServer(function(input, output, session) {
     selectInput('filterOut',
                 label = 'Filter out',
                 choices = l,
-                multiple = F)
+                multiple = F,
+                selected = 'none')
     
   })
   
@@ -480,15 +481,15 @@ shinyServer(function(input, output, session) {
   
   observeEvent(c(input$units, input$influenceOpts, input$influence_choice, input$influenceQuantile, input$level, input$filterOut, input$filterOutUnit), {
     
-    req(dfToPlot, input$units)
+    req(dfToPlot, input$units, input$filterOut)
     
     # df <- dfToPlot$df
     dfAll <- pass_df()
     
     if (input$filterOut != 'none' & !is.null(input$filterOutUnit)){
-    
+
       dfAll <- dfAll[!(dfAll[[input$filterOut]] %in% input$filterOutUnit), ]
-      
+
     }
     
     if (input$influence_choice == 'whole'){
@@ -660,7 +661,7 @@ shinyServer(function(input, output, session) {
       
       #dfMain <- dfMain[dfMain$countCatWithout != dfMain$countAll, ]
       
-      influenceDF$testdf <- dfMain
+      # influenceDF$testdf <- dfMain
       influenceDF$mainPlot <- dfMain
       influenceDF$margPlot <- dfMarg
       
@@ -948,11 +949,15 @@ shinyServer(function(input, output, session) {
     
     df <- influenceDF$mainPlot
     
+    # not plotting units selected to hide
+    
     if (!is.null(input$influence_hide)){
       
       df <- df[!(df[[input$level]] %in% input$influence_hide), ]
       
     }
+    
+    # calculating sequence for lines between months
 
     if (input$influence_choice == 'values'){
       
@@ -984,6 +989,8 @@ shinyServer(function(input, output, session) {
         seqYM <- se[['a']]
 
       }
+      
+      ###
       
       if (input$level == 'global'){
         
@@ -1163,9 +1170,14 @@ shinyServer(function(input, output, session) {
         
         if (input$influence_choice == 'whole'){
           
-          df <- df[!is.na(df$statMov) & !is.nan(df$statMov) & !is.infinite(df$statMov), ]# because chart is not generated due to dividing by zero result NaN, Inf is misleading on chart
+          # df <- df[!is.na(df$statMov) & !is.nan(df$statMov) & !is.infinite(df$statMov), ]# because chart is not generated due to dividing by zero result NaN, Inf is misleading on chart
+
           df$statMov <- ifelse(is.na(df$statMov) | is.nan(df$statMov) | is.infinite(df$statMov), 0, df$statMov)
+          df$catShare <- ifelse(is.na(df$countCatWithout), 1, df$catShare)
+          
           df <- df[df$catShare != 0, ]
+          
+          influenceDF$testdf <- df
           
           if (input$level == 'global'){
             
@@ -1286,8 +1298,12 @@ shinyServer(function(input, output, session) {
     
     if (input$influence_choice == 'whole'){
       
-      df <- df[!is.na(df$statMov) & !is.nan(df$statMov) & !is.infinite(df$statMov), ]
+      # df$statMov <- ifelse(is.na(df$statMov) | is.nan(df$statMov) | is.infinite(df$statMov), 0, df$statMov)
+      # df$catShare <- ifelse(is.na(df$countCatWithout), 1, df$catShare)
+      
+      #df <- df[!is.na(df$statMov) & !is.nan(df$statMov) & !is.infinite(df$statMov), ]
       df$statDiff <- ifelse(is.na(df$statDiff) | is.nan(df$statDiff) | is.infinite(df$statDiff), 0, df$statDiff)
+      df$catShare <- ifelse(is.na(df$countCatWithout), 1, df$catShare)
       df <- df[df$catShare != 0, ]
       
       if (input$level == 'global'){
@@ -1399,7 +1415,8 @@ shinyServer(function(input, output, session) {
     
     if (input$influence_choice == 'whole'){
       
-      df <- df[!is.na(df$statMov) & !is.nan(df$statMov) & !is.infinite(df$statMov), ]
+      #df$statDiff <- ifelse(is.na(df$statDiff) | is.nan(df$statDiff) | is.infinite(df$statDiff), 0, df$statDiff)
+      df$catShare <- ifelse(is.na(df$countCatWithout), 1, df$catShare)
       df <- df[df$catShare != 0, ]
       
       if (input$level == 'global'){
