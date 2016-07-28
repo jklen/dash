@@ -470,13 +470,21 @@ shinyServer(function(input, output, session) {
     
   })
   
-  influenceDF <- reactiveValues(mainPlot = NULL, margPlot = NULL, testdf = NULL)
+  influenceDF <- reactiveValues(mainPlot = NULL, margPlot = NULL, testdf = NULL, testdf2 = NULL)
   
   output$test_influence <- renderPrint({
     t <- data.frame(influenceDF$testdf)
     # t <- t[!is.na(t$statMov) & !is.nan(t$statMov) & !is.infinite(t$statMov), ]
     
     t
+  })
+  
+  output$test_influence_overall <- renderPrint({
+    
+    t <- data.frame(influenceDF$testdf2)
+    
+    t
+    
   })
   
   observeEvent(c(input$units, input$influenceOpts, input$influence_choice, input$influenceQuantile, input$level, input$filterOut, input$filterOutUnit), {
@@ -1177,7 +1185,10 @@ shinyServer(function(input, output, session) {
           
           df <- df[df$catShare != 0, ]
           
+          #influenceDF$testdf2 <- df
           influenceDF$testdf <- df
+          
+          # calculating sequences for vertical lines
           
           if (input$level == 'global'){
             
@@ -1662,7 +1673,12 @@ shinyServer(function(input, output, session) {
             
           }
           
+          # df$statMov <- ifelse(is.na(df$statMov) | is.nan(df$statMov) | is.infinite(df$statMov), 0, df$statMov)
+          # df <- df[df$catShare != 0, ]
+          
           df$statMov <- ifelse(is.na(df$statMov) | is.nan(df$statMov) | is.infinite(df$statMov), 0, df$statMov)
+          df$catShare <- ifelse(is.na(df$countCatWithout), 1, df$catShare)
+          
           df <- df[df$catShare != 0, ]
           
           toPlot <- 
@@ -1751,6 +1767,7 @@ shinyServer(function(input, output, session) {
     if (input$influence_choice == 'whole'){
       
       df$statDiff <- ifelse(is.na(df$statDiff) | is.nan(df$statDiff) | is.infinite(df$statDiff), 0, df$statDiff)
+      df$catShare <- ifelse(is.na(df$countCatWithout), 1, df$catShare)
       df <- df[df$catShare != 0, ]
       
       toPlot <- 
@@ -1832,6 +1849,7 @@ shinyServer(function(input, output, session) {
     
     if (input$influence_choice == 'whole'){
       
+      df$catShare <- ifelse(is.na(df$countCatWithout), 1, df$catShare)
       df <- df[df$catShare != 0, ]
       
       toPlot <- 

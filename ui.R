@@ -322,7 +322,8 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                                      
                                                                      fluidRow(plotOutput('influence_plotOverall')),
                                                                      fluidRow(plotOutput('influence_plotDiffOverall')),
-                                                                     fluidRow(plotOutput('influence_plotShareOverall'))
+                                                                     fluidRow(plotOutput('influence_plotShareOverall')),
+                                                                     verbatimTextOutput('test_influence_overall')
                                                             ),
                                                              
                                                             tabPanel('Table',
