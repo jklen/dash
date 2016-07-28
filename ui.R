@@ -13,6 +13,7 @@ library(leaflet)
 library(threejs)
 library(RColorBrewer)
 library(colorspace)
+library(timevis)
 
 shinyUI(fluidPage(theme = shinytheme("cerulean"),
                   
@@ -55,6 +56,12 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                
 
                                conditionalPanel(condition = "input.tabs_1 == 'Group influence'",
+                                                
+                                                uiOutput('mergeUI'),
+                                                
+                                                uiOutput('mergeButtonUI'),
+                                                
+                                                uiOutput('mergedCategoriesUI'),
                                                 
                                                 selectInput('influence_choice',
                                                             choices = c('Percent within category' = 'values',
@@ -509,6 +516,10 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                         tabPanel('Pivot', rpivotTableOutput('main_table')
                                                  
                                                  
+                                                 
+                                        ),
+                                        
+                                        tabPanel('Events', timevisOutput('timeline')
                                                  
                                         )
                                         

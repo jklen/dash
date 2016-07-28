@@ -16,6 +16,7 @@ library(lazyeval)
 library(threejs)
 library(RColorBrewer)
 library(colorspace)
+library(timevis)
 
 # data load
 
@@ -52,6 +53,70 @@ shinyServer(function(input, output, session) {
                 multiple = T
     )
     
+    
+  })
+  
+  # merging units
+  
+  output$mergeUI <- renderUI({
+    
+    req(input$units)
+    
+    units_toMerge <- input$units
+    
+    selectInput('merge',
+                label = 'Merge',
+                selectize = T,
+                multiple = T,
+                choices = units_toMerge
+    )
+    
+  })
+  
+  output$mergeButtonUI <- renderUI({
+    
+    req(input$merge)
+    
+    if (length(input$merge) >= 2){
+      
+      actionButton('mergeButton',
+                   label = 'Merge',
+                   width = '70px'
+      )
+      
+    }
+    
+  })
+  
+  mergedCats <- reactiveValues(a = NULL)
+  
+  observeEvent(input$mergeButton, {
+    
+    toMerge <- paste(input$merge)
+    
+    mergedCats$a <- toMerge
+    
+    updateSelectInput(session,
+                      'merge',
+                      choices = character(0))
+    
+  })
+  
+  output$mergedCategoriesUI <- renderUI({
+    
+    if (!is.null(mergedCats$a)){
+      
+      textOutput('mergedCategories')
+        
+    }
+    
+  })
+  
+  output$mergedCategories <- renderText({
+    
+    l <- mergedCats$a
+    
+    l
     
   })
   
@@ -3373,6 +3438,36 @@ shinyServer(function(input, output, session) {
                                  scrollY = 400,
                                  scroller = TRUE)) %>%
       formatStyle('util_bill', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue')))
+    
+  })
+  
+  output$timeline <- renderTimevis({
+    
+    df <- data.frame(
+      id = c(1, 2, 3, 4, 5),
+      start = c('2016-07-26', '2016-05-26', '2016-05-25', '2016-03-03', '2016-01-25'),
+      end = c(NA, NA, NA, NA, NA),
+      content = c('<ul>
+                  <li>Merge of Queue 1 and 5</li>
+                  <li>Move IGF ECM workload from Queue 5 to Queue 3</li>
+                  <li>Queue 2 share workload with Queue 3</li>
+                  <li>Queue 6 share IGF Portal 8 workload with Queue 3</li>
+                  <li>New Queue 1 EMEA Smarter computing project move to Queue 3</li>
+                </ul>',
+                  
+                  'Watermark script announcement',
+                  
+                  '<ul>
+                    <li>Katka on board announcement</li>
+                    <li>Team reporting structure changes</li>
+                  </ul>',
+                  
+                  'Global tech lead team changes announcement',
+                  
+                  'Alignment of WASO with DA and DSG')
+    )
+    
+    timevis(df)
     
   })
   
