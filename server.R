@@ -62,7 +62,15 @@ shinyServer(function(input, output, session) {
     
     req(input$units)
     
-    units_toMerge <- input$units
+    if (is.null(mergedCats$sep)){
+    
+      units_toMerge <- input$units
+      
+    } else {
+      
+      units_toMerge <- input$units[!(input$units %in% mergedCats$sep)]
+      
+    }
     
     selectInput('merge',
                 label = 'Merge',
@@ -78,7 +86,7 @@ shinyServer(function(input, output, session) {
     req(input$merge)
     
     if (length(input$merge) >= 2){
-      
+    
       actionButton('mergeButton',
                    label = 'Merge',
                    width = '70px'
@@ -88,23 +96,48 @@ shinyServer(function(input, output, session) {
     
   })
   
-  mergedCats <- reactiveValues(a = NULL)
+  observeEvent(input$grouping, {
+    
+    mergedCats$merg = NULL
+    mergedCats$sep = NULL
+    mergedCats$choice = NULL
+    
+  })
+  
+  
+  mergedCats <- reactiveValues(merg = NULL, sep = NULL, choice = NULL)
   
   observeEvent(input$mergeButton, {
     
-    toMerge <- paste(input$merge)
+    units <- input$units
+    #units_merge <- mergedCats$sep
     
-    mergedCats$a <- toMerge
+    
+    mergedCats$sep <- unique(c(mergedCats$sep, input$merge))
+    mergedCats$merg <- c(as.list(mergedCats$merg), list(input$merge))
+    mergedCats$choice <- units[!(units %in% mergedCats$sep)]
+ 
+    
+  })
+  
+  observe({
+    
+    req(mergedCats$choice)
+    
+    ch <- mergedCats$choice
+    
+    cat(file=stderr(), "selected grouping - ", ch)
     
     updateSelectInput(session,
                       'merge',
-                      choices = character(0))
+                      choices = ch,
+                      selected = character(0))
     
   })
   
   output$mergedCategoriesUI <- renderUI({
     
-    if (!is.null(mergedCats$a)){
+    if (!is.null(mergedCats$sep)){
       
       textOutput('mergedCategories')
         
@@ -114,7 +147,7 @@ shinyServer(function(input, output, session) {
   
   output$mergedCategories <- renderText({
     
-    l <- mergedCats$a
+    l <- mergedCats$sep
     
     l
     
