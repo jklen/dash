@@ -3585,6 +3585,8 @@ shinyServer(function(input, output, session) {
 # m2. aky maju len hodnoty kategorie pod zvolenou statistikou zvoleneho grupovania percentualny vplyv na jej pohyb (aj toho co je zvolene)
 # pod/nad - dat moznost?
 
+# pomer t_bill/t_inv
+
 # 
 
 # prezentacia
