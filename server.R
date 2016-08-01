@@ -110,13 +110,12 @@ shinyServer(function(input, output, session) {
   observeEvent(input$mergeButton, {
     
     units <- input$units
-    #units_merge <- mergedCats$sep
-    
-    
+
     mergedCats$sep <- unique(c(mergedCats$sep, input$merge))
     mergedCats$merg <- c(as.list(mergedCats$merg), list(input$merge))
     mergedCats$choice <- units[!(units %in% mergedCats$sep)]
- 
+    
+
     
   })
   
@@ -126,7 +125,7 @@ shinyServer(function(input, output, session) {
     
     ch <- mergedCats$choice
     
-    cat(file=stderr(), "selected grouping - ", ch)
+    #cat(file=stderr(), "selected grouping - ", ch)
     
     updateSelectInput(session,
                       'merge',
@@ -585,12 +584,39 @@ shinyServer(function(input, output, session) {
     
   })
   
-  observeEvent(c(input$units, input$influenceOpts, input$influence_choice, input$influenceQuantile, input$level, input$filterOut, input$filterOutUnit), {
+  observeEvent(c(input$units, input$influenceOpts, input$influence_choice, input$influenceQuantile, input$level, input$filterOut, input$filterOutUnit, mergedCats$merg), {
     
     req(dfToPlot, input$units, input$filterOut)
     
     # df <- dfToPlot$df
     dfAll <- pass_df()
+    
+    # merging units in dataframe, and set units for calculations
+    
+    if (!is.null(mergedCats$merg)){
+      
+      for (unitToMerge in mergedCats$merg){
+        
+        dfAll[[input$grouping]] <- ifelse(dfAll[[input$grouping]] %in% unitToMerge,
+                                        paste(unitToMerge, collapse = '-'),
+                                        dfAll[[input$grouping]])
+        
+        # cat(file=stderr(), "unit to merge - ", unitToMerge)
+        # cat(file=stderr(), "units pasted - ", paste(unitToMerge, collapse = '-'))
+        # cat(file=stderr(), "categories - ", unique(dfAll[[input$grouping]]))
+      }
+      
+      units <- unlist(lapply(mergedCats$merg, paste, collapse = '-')) # merged units in units
+      units <- c(units, input$units[!(input$units %in% mergedCats$sep)]) # units which are not merged in units
+      
+
+    } else {
+      
+      units <- input$units
+      
+    }
+    
+    # filtering out units
     
     if (input$filterOut != 'none' & !is.null(input$filterOutUnit)){
 
@@ -626,7 +652,7 @@ shinyServer(function(input, output, session) {
           
           #cat(file=stderr(), "---", unique(dfMain1[1]))
           
-          for (unit in input$units){
+          for (unit in units){
             
             # data to YM plot
 
@@ -662,7 +688,7 @@ shinyServer(function(input, output, session) {
             
             dfMarg2[input$grouping] <- unit
             
-            if (unit == input$units[1]){
+            if (unit == units[1]){
               
               dfMain <- dfMain2
               dfMarg <- dfMarg2
@@ -707,7 +733,7 @@ shinyServer(function(input, output, session) {
                       countAll = n()) %>%
             ungroup()
           
-          for (unit in input$units){
+          for (unit in units){
             
             # data to YM plot
             
@@ -743,7 +769,7 @@ shinyServer(function(input, output, session) {
             
             dfMarg2[input$grouping] <- unit
             
-            if (unit == input$units[1]){
+            if (unit == units[1]){
               
               dfMain <- dfMain2
               dfMarg <- dfMarg2
@@ -786,13 +812,13 @@ shinyServer(function(input, output, session) {
             ungroup()
           
           dfMain2 <- dfAll %>%
-            filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+            filter_(interp(~col %in% units, col = as.name(input$grouping))) %>%
             group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
             summarise(countCat = n()) %>%
             ungroup()
           
           dfMain <- dfAll %>%
-            filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+            filter_(interp(~col %in% units, col = as.name(input$grouping))) %>%
             left_join(dfMain1, by = 'YEARMONTH') %>%
             filter(util_bill < stat) %>%
             group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
@@ -818,13 +844,13 @@ shinyServer(function(input, output, session) {
             ungroup()
           
           dfMarg2 <- dfAll %>%
-            filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+            filter_(interp(~col %in% units, col = as.name(input$grouping))) %>%
             group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
             summarise(countCat = n()) %>%
             ungroup()
           
           dfMarg <- dfAll %>%
-            filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+            filter_(interp(~col %in% units, col = as.name(input$grouping))) %>%
             filter(util_bill < dfMarg1$stat) %>%
             group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
             summarise(countCatUnder = n()) %>%
@@ -863,7 +889,7 @@ shinyServer(function(input, output, session) {
             group_by_(.dots = lapply(c(input$grouping, input$level, 'YEARMONTH'), as.symbol)) %>%
             summarise(countCatUnder = n()) %>%
             full_join(dfMain2, by = c(input$grouping, input$level, 'YEARMONTH')) %>%
-            filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+            filter_(interp(~col %in% units, col = as.name(input$grouping))) %>%
             mutate(percUnder = countCatUnder/countCat) %>%
             mutate(percEqAbove = 1 - percUnder) %>%
             ungroup()
@@ -889,7 +915,7 @@ shinyServer(function(input, output, session) {
             group_by_(.dots = lapply(c(input$grouping, input$level), as.symbol)) %>%
             summarise(countCatUnder = n()) %>%
             full_join(dfMarg2, by = c(input$grouping, input$level)) %>%
-            filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+            filter_(interp(~col %in% units, col = as.name(input$grouping))) %>%
             mutate(percUnder = countCatUnder/countCat) %>%
             mutate(percEqAbove = 1 - percUnder) %>%
             ungroup()
@@ -935,7 +961,7 @@ shinyServer(function(input, output, session) {
               summarise(countCatUnder = n()) %>%
               full_join(dfMain2, by = 'YEARMONTH') %>%
               full_join(dfMain3, by = c(input$grouping, 'YEARMONTH')) %>%
-              filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+              filter_(interp(~col %in% units, col = as.name(input$grouping))) %>%
               mutate(percCat = countCatUnder/countAllUnder) %>%
               ungroup()
             
@@ -966,7 +992,7 @@ shinyServer(function(input, output, session) {
               summarise(countCatUnder = n()) %>%
               cbind(dfMarg2) %>%
               full_join(dfMarg3, by = input$grouping) %>%
-              filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+              filter_(interp(~col %in% units, col = as.name(input$grouping))) %>%
               mutate(percCat = countCatUnder/countAllUnder) %>%
               ungroup()
             
@@ -999,7 +1025,7 @@ shinyServer(function(input, output, session) {
               summarise(countCatUnder = n()) %>%
               full_join(dfMain2, by = c(input$level, 'YEARMONTH')) %>%
               full_join(dfMain3, by = c(input$grouping, 'YEARMONTH')) %>%
-              filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+              filter_(interp(~col %in% units, col = as.name(input$grouping))) %>%
               mutate(percCat = countCatUnder/countAllUnder) %>%
               ungroup()
             
@@ -1030,7 +1056,7 @@ shinyServer(function(input, output, session) {
               summarise(countCatUnder = n()) %>%
               full_join(dfMarg2, by = input$level) %>%
               full_join(dfMarg3, by = input$grouping) %>%
-              filter_(interp(~col %in% input$units, col = as.name(input$grouping))) %>%
+              filter_(interp(~col %in% units, col = as.name(input$grouping))) %>%
               mutate(percCat = countCatUnder/countAllUnder) %>%
               ungroup()
 
