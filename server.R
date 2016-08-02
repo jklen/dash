@@ -104,6 +104,42 @@ shinyServer(function(input, output, session) {
     
   })
   
+  observeEvent(input$units, {
+    
+    units <- input$units
+    
+    mergedCats$choice <- mergedCats$sep[!(mergedCats$sep %in% units)]
+    mergedCats$choice <- c(mergedCats$choice, units[!(units %in% mergedCats$sep)])
+    
+    i <- 1
+    
+    for (comb in mergedCats$merg){
+      
+      if (length(intersect(comb, mergedCats$choice)) == 1){
+        
+
+          mergedCats$merg[[i]] <- mergedCats$merg[[i]][mergedCats$merg[[i]] != intersect(comb, mergedCats$choice)]
+          mergedCats$sep <- mergedCats$sep[mergedCats$sep != intersect(comb, mergedCats$choice)]
+          mergedCats$choice <- mergedCats$choice[mergedCats$choice != intersect(comb, mergedCats$choice)]
+          
+          if (length(comb) == 2){
+
+            cat(file=stderr(), "picovina ", mergedCats$merg[[i]])
+            
+            mergedCats$choice <- c(mergedCats$choice, mergedCats$merg[[1]])
+            mergedCats$merg[[i]] <- NULL
+          
+        
+          }
+        
+      }
+      
+      i <- i + 1
+      
+    }
+    
+  })
+  
   
   mergedCats <- reactiveValues(merg = NULL, sep = NULL, choice = NULL)
   
@@ -136,7 +172,7 @@ shinyServer(function(input, output, session) {
   
   output$mergedCategoriesUI <- renderUI({
     
-    if (!is.null(mergedCats$sep)){
+    if (!is.null(mergedCats$merg)){
       
       textOutput('mergedCategories')
         
@@ -146,7 +182,7 @@ shinyServer(function(input, output, session) {
   
   output$mergedCategories <- renderText({
     
-    l <- mergedCats$sep
+    l <- unlist(lapply(mergedCats$merg, paste, collapse = '-'))
     
     l
     
@@ -3676,3 +3712,4 @@ shinyServer(function(input, output, session) {
 # http://www.hafro.is/~einarhj/education/ggplot2/scales.html
 # http://zevross.com/blog/2014/08/04/beautiful-plotting-in-r-a-ggplot2-cheatsheet-3/
 # http://www.cookbook-r.com/
+# http://stackoverflow.com/questions/3695677/how-to-find-common-elements-from-multiple-vectors
