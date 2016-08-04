@@ -60,9 +60,9 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                 uiOutput('mergeUI'),
                                                 
                                                 uiOutput('mergeButtonUI'),
-                                                
-                                                uiOutput('mergedCategoriesUI'),
-                                                
+                                                  
+                                                uiOutput('mergeButtonNULLUI'),
+
                                                 selectInput('influence_choice',
                                                             choices = c('Percent within category' = 'values',
                                                                         'Share from all users under statistic' = 'share',

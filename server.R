@@ -96,7 +96,7 @@ shinyServer(function(input, output, session) {
     
   })
   
-  observeEvent(input$grouping, {
+  observeEvent(c(input$grouping, input$date_range, input$util_value), {
     
     mergedCats$merg = NULL
     mergedCats$sep = NULL
@@ -104,43 +104,27 @@ shinyServer(function(input, output, session) {
     
   })
   
-  observeEvent(input$units, {
+  output$mergeButtonNULLUI <- renderUI({
     
-    units <- input$units
-    
-    mergedCats$choice <- mergedCats$sep[!(mergedCats$sep %in% units)]
-    mergedCats$choice <- c(mergedCats$choice, units[!(units %in% mergedCats$sep)])
-    
-    i <- 1
-    
-    for (comb in mergedCats$merg){
+    if (!is.null(mergedCats$merg) & is.null(input$merge)){
       
-      if (length(intersect(comb, mergedCats$choice)) == 1){
-        
-
-          mergedCats$merg[[i]] <- mergedCats$merg[[i]][mergedCats$merg[[i]] != intersect(comb, mergedCats$choice)]
-          mergedCats$sep <- mergedCats$sep[mergedCats$sep != intersect(comb, mergedCats$choice)]
-          mergedCats$choice <- mergedCats$choice[mergedCats$choice != intersect(comb, mergedCats$choice)]
-          
-          if (length(comb) == 2){
-
-            cat(file=stderr(), "picovina ", mergedCats$merg[[i]])
-            
-            mergedCats$choice <- c(mergedCats$choice, mergedCats$merg[[1]])
-            mergedCats$merg[[i]] <- NULL
-          
-        
-          }
-        
-      }
-      
-      i <- i + 1
+      actionButton('mergeButtonNULL',
+                   label = 'Split',
+                   width = '70px'
+      )
       
     }
     
   })
   
-  
+  observeEvent(input$mergeButtonNULL, {
+    
+    mergedCats$merg = NULL
+    mergedCats$sep = NULL
+    mergedCats$choice = input$units
+    
+  })
+ 
   mergedCats <- reactiveValues(merg = NULL, sep = NULL, choice = NULL)
   
   observeEvent(input$mergeButton, {
@@ -167,24 +151,6 @@ shinyServer(function(input, output, session) {
                       'merge',
                       choices = ch,
                       selected = character(0))
-    
-  })
-  
-  output$mergedCategoriesUI <- renderUI({
-    
-    if (!is.null(mergedCats$merg)){
-      
-      textOutput('mergedCategories')
-        
-    }
-    
-  })
-  
-  output$mergedCategories <- renderText({
-    
-    l <- unlist(lapply(mergedCats$merg, paste, collapse = '-'))
-    
-    l
     
   })
   
