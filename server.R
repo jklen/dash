@@ -1754,7 +1754,7 @@ shinyServer(function(input, output, session) {
             
             geom_bar(aes_string(x = input$grouping, 
                                 y = 'percCat', 
-                                fill = ifelse(length(unique(df[df$catShare > 0, ][[input$level]])) == 1, input$grouping, input$level)), 
+                                fill = ifelse(length(unique(df[[input$level]])) == 1, input$grouping, input$level)), 
                      stat = 'identity', 
                      position = 'dodge', 
                      alpha = 0.5,
@@ -1812,7 +1812,7 @@ shinyServer(function(input, output, session) {
             
             geom_bar(aes_string(x = input$grouping, 
                                 y = 'statMov',
-                                fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[df$statMov > 0, ][[input$level]])) == 1), input$grouping, input$level)), 
+                                fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[[input$level]])) == 1), input$grouping, input$level)), 
                      stat = 'identity', 
                      position = 'dodge', 
                      alpha = 0.5,
@@ -1829,9 +1829,9 @@ shinyServer(function(input, output, session) {
             ggtitle('% difference') +
             scale_y_continuous(labels = scales::percent)
           
-          if (input$level != 'global' & length(unique(df[df$statMov > 0, ][[input$level]])) > 1){
+          if (input$level != 'global' & length(unique(df[[input$level]])) > 1){
             
-            if (max(df$statMov) > 0){
+            if (max(df$statMov) >= 0){
               
               toPlot <- toPlot +
                 geom_bar(stat = 'identity',
@@ -1848,7 +1848,7 @@ shinyServer(function(input, output, session) {
               
             }
             
-            if (min(df$statMov) < 0){
+            if (min(df$statMov) <= 0){
               
               toPlot <- toPlot +
                 geom_bar(stat = 'identity',
@@ -1901,7 +1901,7 @@ shinyServer(function(input, output, session) {
         
         geom_bar(aes_string(x = input$grouping, 
                             y = 'statDiff', 
-                            fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[df$statDiff > 0, ][[input$level]])) == 1), input$grouping, input$level)), 
+                            fill = ifelse(input$level == 'global' | (input$level != 'global' & length(unique(df[[input$level]])) == 1), input$grouping, input$level)), 
                  stat = 'identity', 
                  position = 'dodge', 
                  alpha = 0.5,
@@ -1917,7 +1917,7 @@ shinyServer(function(input, output, session) {
         geom_hline(yintercept = 0, linetype = 2, size = 1, color = 'red') +
         ggtitle('Difference')
       
-      if (input$level != 'global' & length(unique(df[df$statDiff > 0, ][[input$level]])) > 1){
+      if (input$level != 'global' & length(unique(df[[input$level]])) > 1){
         
         if (max(df$statDiff) > 0){
           
