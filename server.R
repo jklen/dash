@@ -3536,145 +3536,17 @@ shinyServer(function(input, output, session) {
 
 ################################################################################
 
-# aspon 3 metriky co monitoruju vykon nejakej role
-# 
-# WPL - QA app rate
-#     - sponosor app rate
-#     - WDL app rate?
-#     - OTD to sponsor
-#     - turnaround?
-#     - waiting times?
-# WB  - report EM Web builder?
-# par globalnych metrik
-# utilizacia  - podla geo -> dept -> org -> user 41
-#             - datatable mainPlot - pre kazdu unit a yearmonth - median, priemer, 1 kvartil, 3 kvartil, count, percento z viditelneho
-#             - pivotka ked bude viacero metrik, vyber z metrik alebo volba datasetu v promptoch
-#             - pivotka - sortovanie, vyhladavanie - dataTables
-#             - ciara median globalnej utilizacie v mesiaci
-#             - nejako vizualizovat, alebo hodit do tabulky o kolko percent dany subset snizuje/zvysuje median globalnej
-#                 utilizacie v mesiaci a celkovo, mozno aj utilizacie levelu nad, percento hodnot pod medianom
-#             - pre boxplot - checkbox, ci ukazat box pre 1 level nad (pre porovnanie napr. danej organizacie a gea pod ktorym je),
-#                 nebude zahrnuty do marginal plotu
-#             - brushing  bez zoomu ako filter do tabulky pod - utilizacia userov
-#             * slider mesiace aj hodnoty
-#             - druhy graf pod - celkovy histogram alebo boxplot (listbox), podla zvolenych
-#                 centier, dept., userov, zoradeny podla medianov
-#             - marginal plot na to co je zobrazene celkovo (selectnute v promtoch), compedium alebo http://daattali.com/shiny/ggExtra-ggMarginal-demo/
-#                 ako histogram s ciarami vpravo, hore ako barchart (count)
-#             * checkbox na centra, departmenty, alebo userov
-#             - checkbox ci budu prompty kaskadovane
-#             - cislo pri boxplote: expected billable hours
-#             - cislo pri boxplote: rast v % celkovej utilizacie oproti
-#                 minulemu mesiacu
-#             - download csv a grafu
+# PREZENTACNE UCELY, ZMENIT
 
-#             - Main tab - tabulka s uplne vsetkymi units v ramci obdobia a hodnot utilizacie (priemer, median, count) podla mesiacov,
-#             -         - druha tabulka s celkovo za vsetky zvolene mesiace
-
-
-# analyticka funkcionalita - rozne metriky na task, round?
-# 1 premenna - grafy, summary
-# 2 a viac premennych - korelacna matica,
-# zistovat pravdepodobnost roznych eventov - markove modely, asociacne pravidla?
-# analyza workflov
-# analyza 'zdrojovej narocnosti' taskov
-# moznost analyzovat vlastny datovy set
-# vizualizacne vychytavky - rCharts, Google charts (google vis), plotly, ggvis, ggplot2
-# interaktivna mapa, nejaka jednoducha metrika na staty
-# googleVis - calendar chart - napr. pocet submitnutych taskov na osobu, centrum, sponsora
-#   - motion chart - s animaciou
-#   - sankey diagram - budget a spending projektov?
-# radar chart - rozne metriky na geo, center, dpt, usera / spiderweb chart - budget vs. spending http://jkunst.com/highcharter/highcharts.html
-# mosaic plot/ treemap
-
-
-# v tabulke user je v 34 riadku volaka cinska picovina, robi bordel - stlpec BUSNEED
-
-# filtre - date_range, util_value, reac_units -> grouping - grouping -> union - check_uplevel
-
-# MAPA  - datum, utilizacia filter -> zakl. data do leafletu na vykreslenie prazdnych polygonov ##### NETREBA???
-#       - unit filter do observera -> leafletproxy na prekreslovanie
-
-# 2.
-# globalny priemer a median, pocetnosti OK
-# moznost porovnat zvolene grafy
-# plotly boxplot, spravit cut quantilov pri values
-# moznost zmeny filtra datumu a hodnoty utilizacie bez toho, aby mi to vynulovalo
-# pri grafoch moznost xlim a ylim
-# nulovat selectnute riadky v tabulke select tab https://yihui.shinyapps.io/DT-proxy/
-
-# GROUP INFLUENCE
-# m1. user count
-# m2. perc. podiel (user count) kategorie zo zvolenych, zo vsetkych - mozno?
-# m3. kolko percent hodnot kategorie je pod/nad hodnotou zvolenej statistiky (zo zvolenych napr. celkovy priemer zvolenych, aj vsetkych kategorii napr. celkovy priemer vsetkych)
-# m4. aky je perc. podiel hodnot kategorie pod hodnotou zvolenej statistiky (zo zvolenych kategorii pod, aj vsetkych pod) napr. hodnoty grupy1 pod celkovym medianom zvolenych grup tvoria 40% vsetkych zvolenych hodnot pod celkovym medianom zvolenych grup
-# ---
-# m1. aky ma cela kategoria percentualny vplyv na pohyb zvolenej statistiky zvoleneho grupovania (aj toho co je zvolene)
-# m2. aky maju len hodnoty kategorie pod zvolenou statistikou zvoleneho grupovania percentualny vplyv na jej pohyb (aj toho co je zvolene)
-# pod/nad - dat moznost?
-
-# pomer t_bill/t_inv
-
-# 
-
-# prezentacia
-
-# 1. ci chapu pojmy
-# 2. oboznamenie - najprv R a Shiny, potom apka
-# 3. R - programovaci jayzyk zamerany na pracu s datami, opensource, rozsiritelny pomocou kniznic/packegov, RStudio - ukazat aj trocha z kodu
-#       - najst nejake cisla porovnania s inymi analytickymi toolmi, cisla zo stackoverflow, podpora pre najvacsie cloudove/analyticke platformy
-#       - t.j. - spracovanie dat z roznych zdrojov
-#               - manipulacia s datami - vektory, matice, dataframy...principy, kniznice (sqldf, reshape, dplyr, tidyr
-#               - analyza (kopec uz vytvorenych funkcii a kopec dalsich moznych kniznic) a vizualizacia dat (uz vytvorene base funkcie
-#                       plus ggplot2 (strucne opisat), ggvis, plotly, dygraph, D3, google charts, rCharts, geograficke data leaflet, tmap a dalsie,
-#                       interaktivita, animacie
-#               - modelovanie dat - vsemozne statisticke algoritmy, strojoveho ucenia, clustrovanie, segmentacne, asociacne,
-#                                       - modelovanie streamovanych dat (zive?), sluzby zez api
-#               - dalsie...
-# 4. shiny - kniznica/web application framework pre R (tj. v R spravis vsetku pracu s datami (manipulovanie, modelovanie, analyzy...) a v Shiny riesis funkcionalitu)
-#           - koncept reaktivity
-#           - moznost interaktivity podla pouzitej kniznice (grafy, tabulky)
-# 5. moja apka - popisat UIcko - panel na prompty, ktore sa dynamicky menia a taby
-#               - popisat pri kazdom vystupe ake informacie ukazuje a moznosti zlepsenia (napr. pri boxplote violin plot, zobrazit cislo s nejakou inou premennou, 
-#                       alebo klik na nejaku katogoriu a zobrazenie nejakeho ineho grafu ci tabulky)
-#               - popisat cca ako to funguje
-# 6. co dalsie by sa malo dat este v shiny spravit, priklady, javascript css html v kode
-# 7. R + Shiny ako tool na reporting?  - dashboardy, shiny server a shinyapps.io, 
-#                                     - parametrizovane a interaktivne HTML (PDF, WORD,...) dokumenty a prezentacie (slidy, slidify, ioslides)
-#                                         vytvorene v RMarkdown, automatizacia?, encoding dat (RData) do html, HTML report
-#                                         v Shiny appke/dashboarde alebo samostatne (mesacna, kentova, utilizacia od vila, personalizovany
-#                                         report s roznymi metrikami a ich spracovanim
-#                                     - nutne preskumat nevyhnutnu funkcionalitu
-#                                     - crosstaby jednoducho?
-# 8. Strucne zhrnut pozitiva a negativa a veci co este treba preskumat
-
-# 2 strucne o prediktivnom modelovani a procese jak to funguje
-# 2 nase vytvory
-# 2 potencial, napady,...dd
+#   DEPT_NAME
+#   ORG_NAME
+#   USER_NAME
+#   normalizovat t_bill, t_inv, exp_bill, util_bill a zmenit nazvy (metric1 - 4)
+#   zrusit timevis
+#   dorobit sekciu "Description and help"
 
 # http://www.r-tutor.com/elementary-statistics/non-parametric-methods/mann-whitney-wilcoxon-test
 # http://stackoverflow.com/questions/20060949/ggplot2-multiple-sub-groups-of-a-bar-chart
-
-# ggplot(aes(x = interaction(ORG_NAME, YEARMONTH), y = m, fill = GEO_NAME), data = df_util_test) +
-#   geom_bar(stat = 'identity', position = 'dodge', alpha = 0.5) +
-#   annotate('text',
-#            x = 1:length(unique(interaction(df_util_test$ORG_NAME, df_util_test$YEARMONTH))),
-#            y = - 0.02, label = rep(unique(df_util_test$ORG_NAME), length(unique(df_util_test$YEARMONTH)))) +
-#   annotate('text',
-#            x = (1:(length(unique(df_util_test$YEARMONTH)))) * length(unique(df_util_test$ORG_NAME)) - length(unique(df_util_test$ORG_NAME))/2 + 0.5 ,
-#            y = - 0.07, label = unique(df_util_test$YEARMONTH)) +
-#   theme(panel.background = element_rect(fill =NA),
-#         axis.text.x = element_blank(),
-#         panel.grid.major = element_line(colour = '#e5e5e5'),
-#         panel.grid.major.x = element_blank(),
-#         axis.ticks.x = element_blank(),
-#         axis.line = element_line(colour = '#bdbdbd'),
-#         axis.title.y = element_blank(),
-#         axis.title.x = element_blank()) +
-#   geom_vline(xintercept = seq(length(unique(df_util_test$ORG_NAME)) + 0.5,
-#                               length(unique(interaction(df_util_test$ORG_NAME, df_util_test$YEARMONTH))),
-#                               length(unique(df_util_test$ORG_NAME))))
-
 # http://www.hafro.is/~einarhj/education/ggplot2/scales.html
 # http://zevross.com/blog/2014/08/04/beautiful-plotting-in-r-a-ggplot2-cheatsheet-3/
 # http://www.cookbook-r.com/
