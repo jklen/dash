@@ -17,7 +17,7 @@ library(timevis)
 
 shinyUI(fluidPage(theme = shinytheme("cerulean"),
                   
-                  titlePanel("User utilization"),
+                  titlePanel("User var_ub"),
                   
                   sidebarPanel(width = 3,
                                
@@ -27,7 +27,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                 dateRangeInput(inputId = 'date_range',
                                                                label = 'Select date range',
                                                                weekstart = 0,
-                                                               start = now() - months(7),
+                                                               start = max(df_util$YEARMONTH) - months(7),
                                                                end = max(df_util$YEARMONTH),
                                                                min = min(df_util$YEARMONTH),
                                                                max = max(df_util$YEARMONTH),
@@ -36,16 +36,16 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                 ),
                                                 
                                                 sliderInput(inputId = 'util_value',
-                                                            label = 'Utilization between',
-                                                            min = 0,
-                                                            max = ceiling(max(df_util$util_bill)),
-                                                            value = c(0.01, ceiling(max(df_util$util_bill))),
+                                                            label = 'Var_ub between',
+                                                            min = min(df_util$var_ub),
+                                                            max = ceiling(max(df_util$var_ub)),
+                                                            value = c(min(df_util$var_ub), ceiling(max(df_util$var_ub))),
                                                             round = -2,
                                                             step = 0.01
                                                 ),
                                                
                                                 radioButtons(inputId = "grouping",
-                                                             label = "User utilization for", 
+                                                             label = "User var_ub for", 
                                                              choices = c('Geo' = 'GEO_NAME',
                                                                          'Organization' = 'ORG_NAME',
                                                                          'Department' = 'DEPT_NAME')
@@ -198,12 +198,12 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                               value = F),
                                                 
                                                 selectInput(inputId = 'util_inputs',
-                                                            choices = c('Tracked billable' = 't_bill',
-                                                                        'Expected billable' = 'exp_bill',
-                                                                        'Tracked investment' = 't_inv'),
+                                                            choices = c('Var_tb' = 'var_tb',
+                                                                        'Var_eb' = 'var_eb',
+                                                                        'Var_ti' = 'var_ti'),
                                                             label = 'X variable',
                                                             multiple = F,
-                                                            selected = 't_bill')
+                                                            selected = 'var_tb')
                                                 
                                                 
                   ),
@@ -211,12 +211,12 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                   conditionalPanel(condition = "input.tabs_1 == 'Inputs' && input.input_chartType == 'densityAll'",
                                    
                                    selectInput(inputId = 'util_inputs_dens',
-                                               choices = c('Tracked billable' = 't_bill',
-                                                           'Expected billable' = 'exp_bill',
-                                                           'Tracked investment' = 't_inv'),
+                                               choices = c('Var_tb' = 'var_tb',
+                                                           'Var_eb' = 'var_eb',
+                                                           'Var_ti' = 'var_ti'),
                                                label = 'X variable',
                                                multiple = F,
-                                               selected = 't_bill')
+                                               selected = 'var_tb')
                   ),
                   
                   conditionalPanel(condition = "input.tabs_1 == 'Inputs' && input.input_chartType == 'box'",
@@ -370,10 +370,10 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                                                 
                                                                                 selectInput(inputId = 'three_x_var',
                                                                                             label = 'X variable',
-                                                                                            choices = c('Tracked billable' = 't_bill',
-                                                                                                        'Expected billable' = 'exp_bill',
-                                                                                                        'Tracked investment' = 't_inv'),
-                                                                                            selected = 't_bill',
+                                                                                            choices = c('Var_tb' = 'var_tb',
+                                                                                                        'Var_eb' = 'var_eb',
+                                                                                                        'Var_ti' = 'var_ti'),
+                                                                                            selected = 'var_tb',
                                                                                             selectize = T,
                                                                                             multiple = F,
                                                                                             width = '200px'),
@@ -390,10 +390,10 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                                                             max = 5,
                                                                                             step = 0.1,
                                                                                             value = 1,
-                                                                                            width = '200px'),
+                                                                                            width = '200px')#,
                                                                                 
-                                                                                actionButton(inputId = 'render_three_button',
-                                                                                             label = 'Render')
+                                                                               # actionButton(inputId = 'render_three_button',
+                                                                                            # label = 'Render')
                                                                   )
                                                  )
                                                  
@@ -429,8 +429,8 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                         
                                         tabPanel('Users - all',
                                                  
-                                                 dygraphOutput('users_dyg'),
-                                                 HTML('threejs')
+                                                 dygraphOutput('users_dyg')#,
+                                                 #verbatimTextOutput('dtest')
                                                  
                                         ),
                                         
@@ -449,13 +449,13 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                                
                                                                selectInput('map_variable',
                                                                            label = 'Color variable',
-                                                                           choices = c('Utilization' = 'util_bill',
-                                                                                       'Tracked billable' = 't_bill',
-                                                                                       'Tracked investment' = 't_inv',
-                                                                                       'Expected billable' = 'exp_bill'),
+                                                                           choices = c('Var_ub' = 'var_ub',
+                                                                                       'Var_tb' = 'var_tb',
+                                                                                       'Var_ti' = 'var_ti',
+                                                                                       'Var_eb' = 'var_eb'),
                                                                            multiple = F,
                                                                            selectize = T,
-                                                                           selected = 'util_bill',
+                                                                           selected = 'var_ub',
                                                                            width = '200px'),
                                                                
                                                                selectInput('map_statistic',
