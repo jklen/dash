@@ -37,7 +37,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                 
                                                 sliderInput(inputId = 'util_value',
                                                             label = 'Var_ub between',
-                                                            min = min(df_util$var_ub),
+                                                            min = 0.01,
                                                             max = ceiling(max(df_util$var_ub)),
                                                             value = c(min(df_util$var_ub), ceiling(max(df_util$var_ub))),
                                                             round = -2,

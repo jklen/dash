@@ -3521,23 +3521,23 @@ shinyServer(function(input, output, session) {
       start = c('2016-07-26', '2016-05-26', '2016-05-25', '2016-03-03', '2016-01-25'),
       end = c(NA, NA, NA, NA, NA),
       content = c('<ul>
-                  <li>Merge of Queue 1 and 5</li>
-                  <li>Move IGF ECM workload from Queue 5 to Queue 3</li>
-                  <li>Queue 2 share workload with Queue 3</li>
-                  <li>Queue 6 share IGF Portal 8 workload with Queue 3</li>
-                  <li>New Queue 1 EMEA Smarter computing project move to Queue 3</li>
+                  <li>Merge of team 1 and 5</li>
+                  <li>Move IGF ECM workload from team 5 to team 3</li>
+                  <li>team 2 share workload with team 3</li>
+                  <li>team 6 share IGF P 11 workload with team 3</li>
+                  <li>New team 1 EMEA Smarter computing project moved to team 3</li>
                 </ul>',
                   
                   'Watermark script announcement',
                   
                   '<ul>
-                    <li>Katka on board announcement</li>
+                    <li>New manager on board announcement</li>
                     <li>Team reporting structure changes</li>
                   </ul>',
                   
                   'Global tech lead team changes announcement',
                   
-                  'Alignment of WASO with DA and DSG')
+                  'Alignment of WAMV with DA and DSG')
     )
     
     timevis(df)
