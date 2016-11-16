@@ -66,8 +66,7 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                 selectInput('influence_choice',
                                                             choices = c('Percent within category' = 'values',
                                                                         'Share from all users under statistic' = 'share',
-                                                                        'Category influence' = 'whole',
-                                                                        'Intervention impact' = 'intervention'),
+                                                                        'Category influence' = 'whole'),
                                                             multiple = F,
                                                             label = 'Measure',
                                                             selected = '1'),
@@ -319,9 +318,9 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                
                                                                fluidRow(plotOutput('influence_plotMain')),
                                                                fluidRow(plotOutput('influence_plotDiff')),
-                                                               fluidRow(plotOutput('influence_plotShare')),
+                                                               fluidRow(plotOutput('influence_plotShare'))
 
-                                                               verbatimTextOutput('test_influence')
+                                                               #verbatimTextOutput('test_influence')
                                                
                                                            ),
                                                  
@@ -329,8 +328,8 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                                      
                                                                      fluidRow(plotOutput('influence_plotOverall')),
                                                                      fluidRow(plotOutput('influence_plotDiffOverall')),
-                                                                     fluidRow(plotOutput('influence_plotShareOverall')),
-                                                                     verbatimTextOutput('test_influence_overall')
+                                                                     fluidRow(plotOutput('influence_plotShareOverall'))
+                                                                     #verbatimTextOutput('test_influence_overall')
                                                             ),
                                                              
                                                             tabPanel('Table',
@@ -359,9 +358,9 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                  
                                                  uiOutput('inputs_plot'),
                                                  
-                                                 verbatimTextOutput('test_inputs'),
+                                                 #verbatimTextOutput('test_inputs'),
                                                  
-                                                 verbatimTextOutput('test_inputs2'),
+                                                 #verbatimTextOutput('test_inputs2'),
                                                  
                                                  conditionalPanel(condition = "input.tabs_1 == 'Inputs' && input.input_chartType == '3d'",
                                                                   
@@ -421,8 +420,8 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                  ),
                                                  
                                                  tableOutput('test_hov'),
-                                                 DT::dataTableOutput('selected_table'),
-                                                 verbatimTextOutput('test1')
+                                                 DT::dataTableOutput('selected_table')
+                                                 #verbatimTextOutput('test1')
                                                  
                                         ),
                                         
@@ -439,8 +438,8 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                                  leafletOutput('countries',
                                                                height = '600px'),
                                                  
-                                                 verbatimTextOutput('test2'),
-                                                 verbatimTextOutput('test3'),
+                                                 #verbatimTextOutput('test2'),
+                                                 #verbatimTextOutput('test3'),
                                                  
                                                  DT::dataTableOutput('usersCountry_table'),
                                                  
@@ -521,7 +520,9 @@ shinyUI(fluidPage(theme = shinytheme("cerulean"),
                                         
                                         tabPanel('Events', timevisOutput('timeline')
                                                  
-                                        )
+                                        ),
+                                        
+                                        tabPanel('Description', htmlOutput('desc'))
                                         
                             )
                   )

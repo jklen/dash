@@ -443,7 +443,7 @@ shinyServer(function(input, output, session) {
   
   pass_df <- reactive({
     
-    df_util_r <- df_util[between(df_util$YEARMONTH, as.POSIXct(input$date_range[1]) - days(1), as.POSIXct(input$date_range[2])),]
+    df_util_r <- df_util[between(df_util$YEARMONTH, as.POSIXct(input$date_range[1]) - months(1), as.POSIXct(input$date_range[2])),]
     df_util_r <- df_util_r[between(df_util_r$var_ub, input$util_value[1], input$util_value[2]),]
     
     df_util_r$YEARMONTH <- as.factor(df_util_r$YEARMONTH)
@@ -577,20 +577,20 @@ shinyServer(function(input, output, session) {
   
   influenceDF <- reactiveValues(mainPlot = NULL, margPlot = NULL, testdf = NULL, testdf2 = NULL)
   
-  output$test_influence <- renderPrint({
-    t <- data.frame(influenceDF$testdf)
-    # t <- t[!is.na(t$statMov) & !is.nan(t$statMov) & !is.infinite(t$statMov), ]
-    
-    t
-  })
+  # output$test_influence <- renderPrint({
+  #   t <- data.frame(influenceDF$testdf)
+  #   # t <- t[!is.na(t$statMov) & !is.nan(t$statMov) & !is.infinite(t$statMov), ]
+  #   
+  #   t
+  # })
   
-  output$test_influence_overall <- renderPrint({
-    
-    t <- data.frame(influenceDF$testdf2)
-    
-    t
-    
-  })
+  # output$test_influence_overall <- renderPrint({
+  #   
+  #   t <- data.frame(influenceDF$testdf2)
+  #   
+  #   t
+  #   
+  # })
   
   observeEvent(c(input$units, input$influenceOpts, input$influence_choice, input$influenceQuantile, input$level, input$filterOut, input$filterOutUnit, mergedCats$merg), {
     
@@ -2072,7 +2072,8 @@ shinyServer(function(input, output, session) {
         theme(panel.background = element_rect(fill =NA),
               panel.grid.major = element_line(colour = '#e5e5e5'),
               axis.line = element_line(colour = '#BDBDBD'),
-              axis.title.y = element_blank())
+              axis.title.y = element_blank(),
+              axis.title.x = element_blank())
       
       if (!is.null(range)){
         
@@ -2139,6 +2140,8 @@ shinyServer(function(input, output, session) {
     df <- dfToPlot$df
     dfGlob <- pass_df()
     g <- gr$x
+    #cat(file=stderr(), "selected grouping - ", class(df$YEARMONTH)) 
+    #df$YEARMONTH <- factor(paste0(format(df$YEARMONTH, '%Y'), '-', format(df$YEARMONTH, '%m')))
     
     if (input$mainPlotVis == 'Boxplots'){
       
@@ -2157,7 +2160,8 @@ shinyServer(function(input, output, session) {
                    stat = 'summary', shape = 4) +
         theme(panel.background = element_rect(fill =NA),
               panel.grid.major = element_line(colour = '#e5e5e5'),
-              axis.line = element_line(colour = '#BDBDBD'))
+              axis.line = element_line(colour = '#BDBDBD'),
+              axis.title.x = element_blank())
       
       if (input$monthlySummaries == T){
         
@@ -2333,7 +2337,8 @@ shinyServer(function(input, output, session) {
                 panel.background = element_rect(fill =NA),
                 panel.grid.major = element_line(colour = '#e5e5e5'),
                 axis.line = element_line(colour = '#BDBDBD'),
-                axis.title.y = element_blank())
+                axis.title.y = element_blank(),
+                axis.title.x = element_blank())
         
         if (!is.null(range)){
           
@@ -2658,19 +2663,19 @@ shinyServer(function(input, output, session) {
     
   })
   
-  output$test_inputs <- renderPrint({
-    
-    event.data <- event_data("plotly_click", source = "plotly1")
-    event.data
-    
-  })
+  # output$test_inputs <- renderPrint({
+  #   
+  #   event.data <- event_data("plotly_click", source = "plotly1")
+  #   event.data
+  #   
+  # })
   
-  output$test_inputs2 <- renderPrint({
-    
-    event.data <- event_data("plotly_selected", source = "plotly1")
-    event.data
-    
-  })
+  # output$test_inputs2 <- renderPrint({
+  #   
+  #   event.data <- event_data("plotly_selected", source = "plotly1")
+  #   event.data
+  #   
+  # })
   
   output$utilization_inputs_box <- renderPlotly({
     
@@ -3136,14 +3141,14 @@ shinyServer(function(input, output, session) {
   #   
   # })
   
-  output$test1 <- renderPrint({
-    
-    #input$inputs_brush
-    #pass_df_selected()[as.numeric(input$selected_table_rows_selected), ]
-    #input$inputs_dblclick
-    #unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])
-    
-  })
+  # output$test1 <- renderPrint({
+  #   
+  #   #input$inputs_brush
+  #   #pass_df_selected()[as.numeric(input$selected_table_rows_selected), ]
+  #   #input$inputs_dblclick
+  #   #unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])
+  #   
+  # })
   # 
   
   
@@ -3237,26 +3242,26 @@ shinyServer(function(input, output, session) {
     
   })
   
-  output$test2 <- renderPrint({
-    
-    #clickedCountry()
-    
-    #userCountry_map()
-    
-    # df <- dataMap$df@data[!is.na(dataMap$df@data$radius), c('name', 'measure_color', 'measure_circle', 'radius', 'maxc')]
-    # arrange(df, desc(radius))
-    
-  })
+  # output$test2 <- renderPrint({
+  #   
+  #   #clickedCountry()
+  #   
+  #   #userCountry_map()
+  #   
+  #   # df <- dataMap$df@data[!is.na(dataMap$df@data$radius), c('name', 'measure_color', 'measure_circle', 'radius', 'maxc')]
+  #   # arrange(df, desc(radius))
+  #   
+  # })
   
-  output$test3 <- renderPrint({
-    
-    #clickedCountry()
-    
-    #userCountry_map()
-    
-    # dfcirc$df
-    
-  })
+  # output$test3 <- renderPrint({
+  #   
+  #   #clickedCountry()
+  #   
+  #   #userCountry_map()
+  #   
+  #   # dfcirc$df
+  #   
+  # })
   
   dataMap <- reactiveValues(df = NULL)
   
@@ -3541,6 +3546,84 @@ shinyServer(function(input, output, session) {
     )
     
     timevis(df)
+    
+  })
+  
+  output$desc <- renderUI({
+    
+    div(
+      br(),
+      h3('About app and data'),
+      p("Purpose of this app is to illustrate basic functionality of R's Shiny framework with focus on exploratory
+        data analysis and usage of various visualisation libraries (ggplot2, plotly, dygraphs, leaflet, threejs, timevis). 
+        This is my first app, so please be patient, few things might not work as expected :). The code is a bit mess, 
+        but I did my best (I learned on the go) and can be found", a(href='https://github.com/jklen/dash', 'here.'), 
+        " Used dataset consists of users normalized monthly utilization (var_ub) for selected categories (geo, organization, 
+        and department) and compared to continous variables used as inputs for calculations (normalized var_eb, var_ti, var_tb)."
+        ),
+      h3('Tabs description'),
+      h4('Main'),
+      p('Main prompts common for most of the tabs are date filter, users monthly utilization value and groups to investigate
+        (Geo, Organization, Department). When these prompts are changed, selection prompt is nullified. Default main plot 
+        is boxplot for each selected category and month showing:',
+        tags$ul(tags$li('median - dash mark'),
+                tags$li('mean - small circle mark'),
+                tags$li('10th and 90th percentile - x mark')
+        )
+      ),
+      p('Except boxplot, it possible to choose from other type of charts like point chart with circle size as user count and 
+        with its center position in category mean or selected quantile with animation, or few barcharts. To boxplot and 
+        point chart you can add 2 layers:',
+        tags$ul(tags$li('median (blue full line) and mean (red full line) of selected categories together'),
+                tags$li('global median and mean as dashed lines')),
+        'Marginal plots are showing overall distribution, distribution of users utilization in selected categories in various 
+        forms like overlaid histograms, boxplots, stacked histograms or relative barcharts. Number of bins can be changed 
+        as well.'),
+      p('When it comes to interactivity, you can:',
+        tags$ul(tags$li('brush 1st marginal plot along Y axis and double click on the selection to zoom/refresh all three charts'),
+                tags$li('click on some category of you interest on main plot (box plot, point chart or dodged barchart) to 
+                        see its details in given month in a datatable below and compare it to all categories in given month.'),
+                tags$li('click on category in 2nd marginal plot (boxplot) to see its details in datatable below and compare it 
+                        to all categories in all months'))),
+      h4('Group influence'),
+      p('In this section you can investigate 3 measures:',
+        tags$ul(tags$li('Percent within category - how much % values of selected category is under/above global statistic 
+                        (mean, quantile), or under/above statistic of categories of selected level'),
+                tags$li('Share from all users under statistic - how much % of users of all users under 
+                        selected global statistic (or some level) are from selected group'),
+                tags$li('Category influence - how much % influences selected category global statistic (or some level)')),
+        'Except the possibility to select statistic to compare (mean, quantile) and level (global, organization,...), you 
+        can also merge categories (they will be threatet as one), filter out categories (all calculations are done without them),
+         or hide categories (the are used in calculations, but will be hidden in chart) so you can closer investigate small values.
+        2 views aro possible: per month and overall.'),
+      h4('Inputs'),
+      p('In this section you can investigate relationship of users utilization to input variables in various ways:',
+        tags$ul(tags$li("as faceted 2d scatter plot for each category and month - here you can select
+                         some part of the data, which you can then investigate closer in 'Selected' tab."),
+                tags$li('as faceted 2d density plot - polygon or heatmap'),
+                tags$li('as faceted boxplot of binned x variable (plotly) - you can set number of splits and if the splits 
+                        should be calculated based on values or quantiles'),
+                tags$li('as 2d density plot with all selected data - polygon or heatmap'),
+                tags$li('as 3d scatter plot with all selected data (threejs)')),
+        'You can also map other input variables to X axis (Y axis variable is var_ub and is always fixed), to points 
+        color or points size, or change few other parameters, like alpha, smoothing as regression line or conditional mean.'),
+      h4('Selected'),
+      p('Here you can closer investigate data, which you selected in Inputs tab, when you hover over the chart, or in datatable 
+        below. Zooming is also possible with brush/dblclick. When you select color variable as User and select some entry 
+        in datatable, selected datapoints per user will be in chart highlited. When some smoothing selected, it will be 
+        done per user.'),
+      h4('Users - all'),
+      p('In this section you can investigate users utilization as timeseries for each user separately. It is more demonstration 
+        of dygraphs library and its features (default zooming per X or Y axis, range selector, nicely highlighted timeseries 
+        when you hover over them.'),
+      h4('User countries'),
+      p('With used leaflet library, you can see summary statistics of users grouped by their countries of origin, with 
+        possibility to map variables to polygon color or to circle size. When you click on some polygon or circle, datatable 
+        will be shown below the map with data of users.'),
+      h4('Pivot & Events'),
+      p('These 2 libriaries might be useful too (rpivotTable, timevis), including very nice features and interactivity')
+    )
+    
     
   })
   
