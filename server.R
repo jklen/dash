@@ -38,6 +38,8 @@ summaryfunction <- function (x){
   return( mysummary )
 }
 
+range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+
 shinyServer(function(input, output, session) {
   
   # rendering checkbox group based on reactive vector of units
@@ -257,7 +259,7 @@ shinyServer(function(input, output, session) {
     selectInput(inputId = 'color_var',
                 label = 'Color variable',
                 choices = c(color_var_list, 'None' = 'none'),
-                selected = 't_inv',
+                selected = 'var_ti',
                 selectize = T,
                 multiple = F)
     
@@ -284,9 +286,9 @@ shinyServer(function(input, output, session) {
   output$util_input_selected <- renderUI({
     
     selectInput(inputId = 'util_inputs_selected',
-                choices = c('Tracked billable' = 't_bill',
-                            'Expected billable' = 'exp_bill',
-                            'Tracked investment' = 't_inv'),
+                choices = c('Var_tb' = 'var_tb',
+                            'Var_eb' = 'var_eb',
+                            'Var_ti' = 'var_ti'),
                 label = 'X variable',
                 multiple = F,
                 selected = input$util_inputs
@@ -307,9 +309,9 @@ shinyServer(function(input, output, session) {
   
   pass_color_var <- reactive({
     
-    color_vars <- c('Tracked billable' = 't_bill',
-                    'Expected billable' = 'exp_bill',
-                    'Tracked investment' = 't_inv')
+    color_vars <- c('Var_tb' = 'var_tb',
+                    'Var_eb' = 'var_eb',
+                    'Var_ti' = 'var_ti')
     
     color_vars <- color_vars[color_vars != input$util_inputs]
     
@@ -319,9 +321,9 @@ shinyServer(function(input, output, session) {
   
   pass_color_var_selected <- reactive({
     
-    color_vars_selected <- c('Tracked billable' = 't_bill',
-                             'Expected billable' = 'exp_bill',
-                             'Tracked investment' = 't_inv',
+    color_vars_selected <- c('Var_tb' = 'var_tb',
+                             'Var_eb' = 'var_eb',
+                             'Var_ti' = 'var_ti',
                              switch(input$grouping, GEO_NAME = c('Geo' = 'GEO_NAME'),
                                     ORG_NAME = c('Organization' = 'ORG_NAME'),
                                     DEPT_NAME = c('Department' = 'DEPT_NAME')),
@@ -364,16 +366,16 @@ shinyServer(function(input, output, session) {
   
   output$three_Y <- renderUI({
     
-    vars <- c('Tracked billable' = 't_bill',
-              'Expected billable' = 'exp_bill',
-              'Tracked investment' = 't_inv')
+    vars <- c('Var_tb' = 'var_tb',
+              'Var_eb' = 'var_eb',
+              'Var_ti' = 'var_ti')
     
     vars <- vars[vars != input$three_x_var]
     
     selectInput(inputId = 'three_y_var',
                 label = 'Y variable',
                 choices = vars,
-                selected = 't_inv',
+                selected = 'var_ti',
                 multiple = F,
                 width = '200px')
     
@@ -381,9 +383,9 @@ shinyServer(function(input, output, session) {
   
   output$three_color <- renderUI({
     
-    vars <- c('Tracked billable' = 't_bill',
-              'Expected billable' = 'exp_bill',
-              'Tracked investment' = 't_inv',
+    vars <- c('Var_tb' = 'var_tb',
+              'Var_eb' = 'var_eb',
+              'Var_ti' = 'var_ti',
               switch(input$grouping, GEO_NAME = c('Geo' = 'GEO_NAME'),
                      ORG_NAME = c('Organization' = 'ORG_NAME'),
                      DEPT_NAME = c('Department' = 'DEPT_NAME')))
@@ -401,9 +403,9 @@ shinyServer(function(input, output, session) {
   
   output$three_size <- renderUI({
     
-    vars <- c('Tracked billable' = 't_bill',
-              'Expected billable' = 'exp_bill',
-              'Tracked investment' = 't_inv')
+    vars <- c('Var_tb' = 'var_tb',
+              'Var_eb' = 'var_eb',
+              'Var_ti' = 'var_ti')
     
     vars <- vars[!(vars %in% c(input$three_x_var, input$three_y_var, input$three_color_var))]
     
@@ -420,10 +422,10 @@ shinyServer(function(input, output, session) {
   
   output$circleVar <- renderUI({
     
-    vars <- c('Utilization' = 'util_bill',
-              'Tracked billable' = 't_bill',
-              'Expected billable' = 'exp_bill',
-              'Tracked investment' = 't_inv',
+    vars <- c('Utilization' = 'var_ub',
+              'Var_tb' = 'var_tb',
+              'Var_eb' = 'var_eb',
+              'Var_ti' = 'var_ti',
               'Users mean count' = 'YM_meanCount')
     
     vars <- vars[vars != input$map_variable]
@@ -441,8 +443,8 @@ shinyServer(function(input, output, session) {
   
   pass_df <- reactive({
     
-    df_util_r <- df_util[between(df_util$YEARMONTH, as.POSIXct(input$date_range[1]) - days(1), as.POSIXct(input$date_range[2])),]
-    df_util_r <- df_util_r[between(df_util_r$util_bill, input$util_value[1], input$util_value[2]),]
+    df_util_r <- df_util[between(df_util$YEARMONTH, as.POSIXct(input$date_range[1]) - months(1), as.POSIXct(input$date_range[2])),]
+    df_util_r <- df_util_r[between(df_util_r$var_ub, input$util_value[1], input$util_value[2]),]
     
     df_util_r$YEARMONTH <- as.factor(df_util_r$YEARMONTH)
     
@@ -499,16 +501,20 @@ shinyServer(function(input, output, session) {
     
     groups_toPlot <- c(input$grouping, 'YEARMONTH', 'USER_NAME', 'COUNTRY_NAME') 
     
-    if (!is.null(df_util_reac)){
-      
-      df_util_reac <- df_util_reac %>% 
-        group_by_(.dots = lapply(groups_toPlot, as.symbol)) %>%
-        summarise(t_bill = sum(t_bill), 
-                  t_inv = sum(t_inv), 
-                  exp_bill = sum(exp_bill)) %>%
-        mutate(util_bill = (t_bill + t_inv)/exp_bill) %>%
-        ungroup()
-    }
+    # if (!is.null(df_util_reac)){
+    #   
+    #   df_util_reac <- df_util_reac %>% 
+    #     group_by_(.dots = lapply(groups_toPlot, as.symbol)) %>%
+    #     summarise(var_tb = sum(var_tb), 
+    #               var_ti = sum(var_ti), 
+    #               var_eb = sum(var_eb)) %>%
+    #     mutate(var_ub = (var_tb + var_ti)/var_eb) %>%
+    #     ungroup()
+    # }
+    # 
+    # df_util_reac$var_tb <- range01(df_util_reac$var_tb) * 100
+    # df_util_reac$var_ti <- range01(df_util_reac$var_ti) * 100
+    # df_util_reac$var_ub <- range01(df_util_reac$var_ub)
     
     dfToPlot$df <- df_util_reac
     
@@ -528,8 +534,8 @@ shinyServer(function(input, output, session) {
       if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 != '(all)'){
         
         brushed$df <- df[df$YEARMONTH == input$inputs_brush$panelvar2 &
-                           df$util_bill >= input$inputs_brush$ymin &
-                           df$util_bill <= input$inputs_brush$ymax &
+                           df$var_ub >= input$inputs_brush$ymin &
+                           df$var_ub <= input$inputs_brush$ymax &
                            df[input$util_inputs] >= input$inputs_brush$xmin &
                            df[input$util_inputs] <= input$inputs_brush$xmax, ]
         
@@ -538,8 +544,8 @@ shinyServer(function(input, output, session) {
         if (input$inputs_brush$panelvar1 != '(all)' & input$inputs_brush$panelvar2 == '(all)'){
           
           brushed$df <- df[df[input$grouping] == input$inputs_brush$panelvar1 &
-                             df$util_bill >= input$inputs_brush$ymin &
-                             df$util_bill <= input$inputs_brush$ymax &
+                             df$var_ub >= input$inputs_brush$ymin &
+                             df$var_ub <= input$inputs_brush$ymax &
                              df[input$util_inputs] >= input$inputs_brush$xmin &
                              df[input$util_inputs] <= input$inputs_brush$xmax, ] 
           
@@ -547,8 +553,8 @@ shinyServer(function(input, output, session) {
           
           if (input$inputs_brush$panelvar1 == '(all)' & input$inputs_brush$panelvar2 == '(all)'){
             
-            brushed$df <- df[df$util_bill >= input$inputs_brush$ymin &
-                               df$util_bill <= input$inputs_brush$ymax &
+            brushed$df <- df[df$var_ub >= input$inputs_brush$ymin &
+                               df$var_ub <= input$inputs_brush$ymax &
                                df[input$util_inputs] >= input$inputs_brush$xmin &
                                df[input$util_inputs] <= input$inputs_brush$xmax, ] 
             
@@ -557,7 +563,7 @@ shinyServer(function(input, output, session) {
             brushed$df <- brushedPoints(df, 
                                         input$inputs_brush,
                                         input$util_inputs,
-                                        'util_bill')
+                                        'var_ub')
             
           }
         }
@@ -571,20 +577,20 @@ shinyServer(function(input, output, session) {
   
   influenceDF <- reactiveValues(mainPlot = NULL, margPlot = NULL, testdf = NULL, testdf2 = NULL)
   
-  output$test_influence <- renderPrint({
-    t <- data.frame(influenceDF$testdf)
-    # t <- t[!is.na(t$statMov) & !is.nan(t$statMov) & !is.infinite(t$statMov), ]
-    
-    t
-  })
+  # output$test_influence <- renderPrint({
+  #   t <- data.frame(influenceDF$testdf)
+  #   # t <- t[!is.na(t$statMov) & !is.nan(t$statMov) & !is.infinite(t$statMov), ]
+  #   
+  #   t
+  # })
   
-  output$test_influence_overall <- renderPrint({
-    
-    t <- data.frame(influenceDF$testdf2)
-    
-    t
-    
-  })
+  # output$test_influence_overall <- renderPrint({
+  #   
+  #   t <- data.frame(influenceDF$testdf2)
+  #   
+  #   t
+  #   
+  # })
   
   observeEvent(c(input$units, input$influenceOpts, input$influence_choice, input$influenceQuantile, input$level, input$filterOut, input$filterOutUnit, mergedCats$merg), {
     
@@ -636,8 +642,8 @@ shinyServer(function(input, output, session) {
         
           dfMain1 <- dfAll %>%
             group_by(YEARMONTH) %>%
-            summarise(statWith = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T),
-                                        quantile(util_bill, probs = input$influenceQuantile, na.rm = T)),
+            summarise(statWith = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T),
+                                        quantile(var_ub, probs = input$influenceQuantile, na.rm = T)),
                       countAll = n()) %>%
             mutate(global = 'Global') %>%
             ungroup()
@@ -646,8 +652,8 @@ shinyServer(function(input, output, session) {
           
           dfMarg1 <- dfAll %>%
             group_by() %>%
-            summarise(statWith =  ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T),
-                                         quantile(util_bill, probs = input$influenceQuantile, na.rm = T)),
+            summarise(statWith =  ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T),
+                                         quantile(var_ub, probs = input$influenceQuantile, na.rm = T)),
                       countAll = n()) %>%
             mutate(global = 'global') %>%
             ungroup()
@@ -663,8 +669,8 @@ shinyServer(function(input, output, session) {
             
             dfMain2 <- dfMain2 %>%
               group_by(YEARMONTH) %>%
-              summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T),
-                                             quantile(util_bill, probs = input$influenceQuantile, na.rm = T)),
+              summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T),
+                                             quantile(var_ub, probs = input$influenceQuantile, na.rm = T)),
                         countCatWithout = n()) %>%
               full_join(dfMain1, by = 'YEARMONTH') %>%
               mutate(statMov = (statWith - statWithout)/statWithout,
@@ -679,8 +685,8 @@ shinyServer(function(input, output, session) {
             
             dfMarg2 <- dfMarg2 %>%
               group_by() %>%
-              summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T),
-                                             quantile(util_bill, probs = input$influenceQuantile, na.rm = T)),
+              summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T),
+                                             quantile(var_ub, probs = input$influenceQuantile, na.rm = T)),
                         countCatWithout = n()) %>%
               cbind(dfMarg1) %>%
               mutate(statMov = (statWith - statWithout)/statWithout,
@@ -721,8 +727,8 @@ shinyServer(function(input, output, session) {
           
           dfMain1 <- dfAll %>%
             group_by_(.dots = lapply(c(input$level, 'YEARMONTH'), as.symbol)) %>%
-            summarise(statWith = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
-                                        quantile(util_bill, probs = input$influenceQuantile, na.rm = T)),
+            summarise(statWith = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T), 
+                                        quantile(var_ub, probs = input$influenceQuantile, na.rm = T)),
                       countAll = n()) %>%
             ungroup()
           
@@ -730,8 +736,8 @@ shinyServer(function(input, output, session) {
           
           dfMarg1 <- dfAll %>%
             group_by_(.dots = lapply(input$level, as.symbol)) %>%
-            summarise(statWith = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
-                                        quantile(util_bill, probs = input$influenceQuantile, na.rm = T)),
+            summarise(statWith = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T), 
+                                        quantile(var_ub, probs = input$influenceQuantile, na.rm = T)),
                       countAll = n()) %>%
             ungroup()
           
@@ -744,8 +750,8 @@ shinyServer(function(input, output, session) {
 
             dfMain2 <- dfMain2 %>%
               group_by_(.dots = lapply(c(input$level, 'YEARMONTH'), as.symbol)) %>%
-              summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
-                                          quantile(util_bill, probs = input$influenceQuantile, na.rm = T)),
+              summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T), 
+                                          quantile(var_ub, probs = input$influenceQuantile, na.rm = T)),
                         countCatWithout = n()) %>%
               full_join(dfMain1, by = c(input$level, 'YEARMONTH')) %>%
               mutate(statMov = (statWith - statWithout)/statWithout,
@@ -760,8 +766,8 @@ shinyServer(function(input, output, session) {
 
             dfMarg2 <- dfMarg2 %>%
               group_by_(.dots = lapply(input$level, as.symbol)) %>%
-              summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
-                                             quantile(util_bill, probs = input$influenceQuantile, na.rm = T)),
+              summarise(statWithout = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T), 
+                                             quantile(var_ub, probs = input$influenceQuantile, na.rm = T)),
                         countCatWithout = n()) %>%
               full_join(dfMarg1, by = input$level) %>%
               mutate(statMov = (statWith - statWithout)/statWithout,
@@ -809,8 +815,8 @@ shinyServer(function(input, output, session) {
           
           dfMain1 <- dfAll %>%
             group_by_(.dots = lapply('YEARMONTH', as.symbol)) %>%
-            summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
-                             quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+            summarise(stat = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T), 
+                             quantile(var_ub, probs = input$influenceQuantile, na.rm = T))) %>%
             ungroup()
           
           dfMain2 <- dfAll %>%
@@ -822,7 +828,7 @@ shinyServer(function(input, output, session) {
           dfMain <- dfAll %>%
             filter_(interp(~col %in% units, col = as.name(input$grouping))) %>%
             left_join(dfMain1, by = 'YEARMONTH') %>%
-            filter(util_bill < stat) %>%
+            filter(var_ub < stat) %>%
             group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
             summarise(countCatUnder = n()) %>%
             full_join(dfMain2, by = c(input$grouping, 'YEARMONTH')) %>%
@@ -841,8 +847,8 @@ shinyServer(function(input, output, session) {
           
           dfMarg1 <- dfAll %>%
             group_by() %>%
-            summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
-                                    quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+            summarise(stat = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T), 
+                                    quantile(var_ub, probs = input$influenceQuantile, na.rm = T))) %>%
             ungroup()
           
           dfMarg2 <- dfAll %>%
@@ -853,7 +859,7 @@ shinyServer(function(input, output, session) {
           
           dfMarg <- dfAll %>%
             filter_(interp(~col %in% units, col = as.name(input$grouping))) %>%
-            filter(util_bill < dfMarg1$stat) %>%
+            filter(var_ub < dfMarg1$stat) %>%
             group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
             summarise(countCatUnder = n()) %>%
             full_join(dfMarg2, by = input$grouping) %>%
@@ -876,8 +882,8 @@ shinyServer(function(input, output, session) {
           
           dfMain1 <- dfAll %>%
             group_by_(.dots = lapply(c(input$level, 'YEARMONTH'), as.symbol)) %>%
-            summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
-                                    quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+            summarise(stat = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T), 
+                                    quantile(var_ub, probs = input$influenceQuantile, na.rm = T))) %>%
             ungroup()
           
           dfMain2 <- dfAll %>%
@@ -887,7 +893,7 @@ shinyServer(function(input, output, session) {
           
           dfMain <- dfAll %>%
             full_join(dfMain1, by = c(input$level, 'YEARMONTH')) %>%
-            filter(util_bill < stat) %>%
+            filter(var_ub < stat) %>%
             group_by_(.dots = lapply(c(input$grouping, input$level, 'YEARMONTH'), as.symbol)) %>%
             summarise(countCatUnder = n()) %>%
             full_join(dfMain2, by = c(input$grouping, input$level, 'YEARMONTH')) %>%
@@ -902,8 +908,8 @@ shinyServer(function(input, output, session) {
           
           dfMarg1 <- dfAll %>%
             group_by_(.dots = lapply(input$level, as.symbol)) %>%
-            summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
-                                    quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+            summarise(stat = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T), 
+                                    quantile(var_ub, probs = input$influenceQuantile, na.rm = T))) %>%
             ungroup()
           
           dfMarg2 <- dfAll %>%
@@ -913,7 +919,7 @@ shinyServer(function(input, output, session) {
           
           dfMarg <- dfAll %>%
             full_join(dfMarg1, by = input$level) %>%
-            filter(util_bill < stat) %>%
+            filter(var_ub < stat) %>%
             group_by_(.dots = lapply(c(input$grouping, input$level), as.symbol)) %>%
             summarise(countCatUnder = n()) %>%
             full_join(dfMarg2, by = c(input$grouping, input$level)) %>%
@@ -940,13 +946,13 @@ shinyServer(function(input, output, session) {
             
             dfMain1 <- dfAll %>%
               group_by(YEARMONTH) %>%
-              summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
-                                      quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+              summarise(stat = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T), 
+                                      quantile(var_ub, probs = input$influenceQuantile, na.rm = T))) %>%
               ungroup()
             
             dfMain2 <- dfAll %>%
               full_join(dfMain1, by = 'YEARMONTH') %>%
-              filter(util_bill < stat) %>%
+              filter(var_ub < stat) %>%
               group_by(YEARMONTH) %>%
               summarise(countAllUnder = n()) %>%
               ungroup()
@@ -958,7 +964,7 @@ shinyServer(function(input, output, session) {
             
             dfMain <- dfAll %>%
               full_join(dfMain1, by = 'YEARMONTH') %>%
-              filter(util_bill < stat) %>%
+              filter(var_ub < stat) %>%
               group_by_(.dots = lapply(c(input$grouping, 'YEARMONTH'), as.symbol)) %>%
               summarise(countCatUnder = n()) %>%
               full_join(dfMain2, by = 'YEARMONTH') %>%
@@ -971,13 +977,13 @@ shinyServer(function(input, output, session) {
             
             dfMarg1 <- dfAll %>%
               group_by() %>%
-              summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
-                                      quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+              summarise(stat = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T), 
+                                      quantile(var_ub, probs = input$influenceQuantile, na.rm = T))) %>%
               ungroup()
             
             dfMarg2 <- dfAll %>%
               cbind(dfMarg1) %>%
-              filter(util_bill < stat) %>%
+              filter(var_ub < stat) %>%
               group_by() %>%
               summarise(countAllUnder = n()) %>%
               ungroup()
@@ -989,7 +995,7 @@ shinyServer(function(input, output, session) {
             
             dfMarg <- dfAll %>%
               cbind(dfMarg1) %>%
-              filter(util_bill < stat) %>%
+              filter(var_ub < stat) %>%
               group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
               summarise(countCatUnder = n()) %>%
               cbind(dfMarg2) %>%
@@ -1004,13 +1010,13 @@ shinyServer(function(input, output, session) {
             
             dfMain1 <- dfAll %>%
               group_by_(.dots = lapply(c(input$level, 'YEARMONTH'), as.symbol)) %>%
-              summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
-                                      quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+              summarise(stat = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T), 
+                                      quantile(var_ub, probs = input$influenceQuantile, na.rm = T))) %>%
               ungroup()
             
             dfMain2 <- dfAll %>%
               inner_join(dfMain1, by = c(input$level, 'YEARMONTH')) %>%
-              filter(util_bill < stat) %>%
+              filter(var_ub < stat) %>%
               group_by_(.dots = lapply(c(input$level, 'YEARMONTH'), as.symbol)) %>%
               summarise(countAllUnder = n()) %>%
               ungroup()
@@ -1022,7 +1028,7 @@ shinyServer(function(input, output, session) {
             
             dfMain <- dfAll %>%
               full_join(dfMain1, by = c(input$level, 'YEARMONTH')) %>%
-              filter(util_bill < stat) %>%
+              filter(var_ub < stat) %>%
               group_by_(.dots = lapply(c(input$grouping, input$level, 'YEARMONTH'), as.symbol)) %>%
               summarise(countCatUnder = n()) %>%
               full_join(dfMain2, by = c(input$level, 'YEARMONTH')) %>%
@@ -1035,13 +1041,13 @@ shinyServer(function(input, output, session) {
             
             dfMarg1 <- dfAll %>%
               group_by_(.dots = lapply(input$level, as.symbol)) %>%
-              summarise(stat = ifelse(input$influenceOpts == 'mean', mean(util_bill, na.rm = T), 
-                                      quantile(util_bill, probs = input$influenceQuantile, na.rm = T))) %>%
+              summarise(stat = ifelse(input$influenceOpts == 'mean', mean(var_ub, na.rm = T), 
+                                      quantile(var_ub, probs = input$influenceQuantile, na.rm = T))) %>%
               ungroup()
             
             dfMarg2 <- dfAll %>%
               inner_join(dfMarg1, by = input$level) %>%
-              filter(util_bill < stat) %>%
+              filter(var_ub < stat) %>%
               group_by_(.dots = lapply(input$level, as.symbol)) %>%
               summarise(countAllUnder = n()) %>%
               ungroup()
@@ -1053,7 +1059,7 @@ shinyServer(function(input, output, session) {
             
             dfMarg <- dfAll %>%
               full_join(dfMarg1, by = input$level) %>%
-              filter(util_bill < stat) %>%
+              filter(var_ub < stat) %>%
               group_by_(.dots = lapply(c(input$grouping, input$level), as.symbol)) %>%
               summarise(countCatUnder = n()) %>%
               full_join(dfMarg2, by = input$level) %>%
@@ -2044,29 +2050,30 @@ shinyServer(function(input, output, session) {
       
       #cat(file=stderr(), "-------------PLOTDF---------", unique(df$GEO_NAME))
       
-      plot_util_marg1 <- ggplot(aes(x = util_bill), data = df) +
+      plot_util_marg1 <- ggplot(aes(x = var_ub), data = df) +
         geom_histogram(fill = '#F79420', color = 'black', bins = input$bins, alpha = 0.5) +
-        geom_vline(xintercept = mean(df$util_bill)) +
-        geom_vline(xintercept = as.numeric(mean(df$util_bill, na.rm = T)),
+        geom_vline(xintercept = mean(df$var_ub)) +
+        geom_vline(xintercept = as.numeric(mean(df$var_ub, na.rm = T)),
                    color = 'red') +
-        geom_vline(xintercept = as.numeric(median(df$util_bill, na.rm = T)),
+        geom_vline(xintercept = as.numeric(median(df$var_ub, na.rm = T)),
                    color = 'blue') +
-        geom_vline(xintercept = as.numeric(quantile(df$util_bill,
+        geom_vline(xintercept = as.numeric(quantile(df$var_ub,
                                                     probs = 0.25, na.rm = T)),
                    linetype = 2, color = 'blue') +
-        geom_vline(xintercept = as.numeric(quantile(df$util_bill,
+        geom_vline(xintercept = as.numeric(quantile(df$var_ub,
                                                     probs = 0.75, na.rm = T)),
                    linetype = 2, color = 'blue') +
-        geom_vline(xintercept = as.numeric(quantile(df$util_bill,
+        geom_vline(xintercept = as.numeric(quantile(df$var_ub,
                                                     probs = 0.1, na.rm = T)),
                    linetype = 3) +
-        geom_vline(xintercept = as.numeric(quantile(df$util_bill,
+        geom_vline(xintercept = as.numeric(quantile(df$var_ub,
                                                     probs = 0.9, na.rm = T)),
                    linetype = 3) +
         theme(panel.background = element_rect(fill =NA),
               panel.grid.major = element_line(colour = '#e5e5e5'),
               axis.line = element_line(colour = '#BDBDBD'),
-              axis.title.y = element_blank())
+              axis.title.y = element_blank(),
+              axis.title.x = element_blank())
       
       if (!is.null(range)){
         
@@ -2133,10 +2140,12 @@ shinyServer(function(input, output, session) {
     df <- dfToPlot$df
     dfGlob <- pass_df()
     g <- gr$x
+    #cat(file=stderr(), "selected grouping - ", class(df$YEARMONTH)) 
+    #df$YEARMONTH <- factor(paste0(format(df$YEARMONTH, '%Y'), '-', format(df$YEARMONTH, '%m')))
     
     if (input$mainPlotVis == 'Boxplots'){
       
-      plot_util_YM <- ggplot(aes_string(y = 'util_bill', fill = g), data = df) + 
+      plot_util_YM <- ggplot(aes_string(y = 'var_ub', fill = g), data = df) + 
         geom_boxplot(aes(x = factor(YEARMONTH)), alpha = 0.5) +
         geom_point(aes(x = factor(YEARMONTH)), 
                    position=position_dodge(width=0.75), 
@@ -2151,7 +2160,8 @@ shinyServer(function(input, output, session) {
                    stat = 'summary', shape = 4) +
         theme(panel.background = element_rect(fill =NA),
               panel.grid.major = element_line(colour = '#e5e5e5'),
-              axis.line = element_line(colour = '#BDBDBD'))
+              axis.line = element_line(colour = '#BDBDBD'),
+              axis.title.x = element_blank())
       
       if (input$monthlySummaries == T){
         
@@ -2211,12 +2221,12 @@ shinyServer(function(input, output, session) {
               if (input$pointChartOpts == 'mean'){
                 
                 plot_util_YM <- ggplot(data = NULL) +
-                  geom_point(aes_string(x = 'YEARMONTH', y = 'm_util_bill', size = 'count', color = g),
+                  geom_point(aes_string(x = 'YEARMONTH', y = 'm_var_ub', size = 'count', color = g),
                              alpha = 0.4,
                              position = position_dodge(width = 0.75),
                              data = df %>% 
                                group_by_(.dots = lapply(c('YEARMONTH', g), as.symbol)) %>%
-                               summarise(count = n(), m_util_bill = mean(util_bill)) %>%
+                               summarise(count = n(), m_var_ub = mean(var_ub)) %>%
                                ungroup()) +
                   scale_size_continuous(range = c(1,20)) +
                   theme(panel.background = element_rect(fill =NA),
@@ -2228,12 +2238,12 @@ shinyServer(function(input, output, session) {
               if (input$pointChartOpts == 'quant'){
                 
                 plot_util_YM <- ggplot(data = NULL) +
-                  geom_point(aes_string(x = 'YEARMONTH', y = 'm_util_bill', size = 'count', color = g),
+                  geom_point(aes_string(x = 'YEARMONTH', y = 'm_var_ub', size = 'count', color = g),
                              alpha = 0.4,
                              position = position_dodge(width = 0.75),
                              data = df %>% 
                                group_by_(.dots = lapply(c('YEARMONTH', g), as.symbol)) %>%
-                               summarise(count = n(), m_util_bill = quantile(util_bill, probs = input$pointChartQuantile, na.rm = T)) %>%
+                               summarise(count = n(), m_var_ub = quantile(var_ub, probs = input$pointChartQuantile, na.rm = T)) %>%
                                ungroup())+
                   scale_size_continuous(range = c(1,20)) +
                   theme(panel.background = element_rect(fill =NA),
@@ -2245,14 +2255,14 @@ shinyServer(function(input, output, session) {
               if (input$monthlySummaries == T){
                 
                 plot_util_YM <- plot_util_YM +
-                  geom_line(aes(x = YEARMONTH, y = util_bill, group = g),
+                  geom_line(aes(x = YEARMONTH, y = var_ub, group = g),
                             data = df,
                             fun.y = mean,
                             stat = 'summary',
                             color = 'red',
                             alpha = 0.4,
                             size = 2) +
-                  geom_line(aes(x = YEARMONTH, y = util_bill, group = g),
+                  geom_line(aes(x = YEARMONTH, y = var_ub, group = g),
                             data = df,
                             fun.y = median,
                             stat = 'summary',
@@ -2265,9 +2275,9 @@ shinyServer(function(input, output, session) {
               if (input$globalSummaries == T){
                 
                 plot_util_YM <- plot_util_YM +
-                  geom_line(aes(x = factor(YEARMONTH), y = util_bill, group = g), data = dfGlob,
+                  geom_line(aes(x = factor(YEARMONTH), y = var_ub, group = g), data = dfGlob,
                             fun.y = mean, stat = 'summary', color = 'red', size = 1, linetype = 2) +
-                  geom_line(aes(x = factor(YEARMONTH), y = util_bill, group = g), data = dfGlob,
+                  geom_line(aes(x = factor(YEARMONTH), y = var_ub, group = g), data = dfGlob,
                             fun.y = median, stat = 'summary', color = 'blue', size = 1, linetype = 2)
                 
               }
@@ -2312,22 +2322,23 @@ shinyServer(function(input, output, session) {
       
       if (input$marginalVis == 'Boxplots'){
         
-        plot_util_marg2 <- ggplot(aes_string(y = 'util_bill', x = g, fill = g), data = df) +
+        plot_util_marg2 <- ggplot(aes_string(y = 'var_ub', x = g, fill = g), data = df) +
           geom_boxplot(alpha = 0.5) +
           geom_point(fun.y = mean, stat = 'summary', shape = 1) +
           geom_point(fun.y = quantile, fun.args=list(probs=0.1),
                      stat = 'summary', shape = 4) +
           geom_point(fun.y = quantile, fun.args=list(probs=0.9),
                      stat = 'summary', shape = 4) +
-          geom_hline(yintercept = as.numeric(mean(df$util_bill, na.rm = T)),
+          geom_hline(yintercept = as.numeric(mean(df$var_ub, na.rm = T)),
                      color = 'red') +
-          geom_hline(yintercept = as.numeric(median(df$util_bill, na.rm = T)),
+          geom_hline(yintercept = as.numeric(median(df$var_ub, na.rm = T)),
                      color = 'blue') +
           theme(legend.position = 'none',
                 panel.background = element_rect(fill =NA),
                 panel.grid.major = element_line(colour = '#e5e5e5'),
                 axis.line = element_line(colour = '#BDBDBD'),
-                axis.title.y = element_blank())
+                axis.title.y = element_blank(),
+                axis.title.x = element_blank())
         
         if (!is.null(range)){
           
@@ -2342,11 +2353,11 @@ shinyServer(function(input, output, session) {
         
         if (input$marginalVis == 'Overlaid histograms'){
           
-          plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = g), data = df) +
+          plot_util_marg2 <- ggplot(aes_string(x = 'var_ub', fill = g), data = df) +
             geom_histogram(alpha = 0.4, position = 'identity', bins = input$bins) + 
-            geom_vline(xintercept = as.numeric(mean(df$util_bill, na.rm = T)),
+            geom_vline(xintercept = as.numeric(mean(df$var_ub, na.rm = T)),
                        color = 'red') +
-            geom_vline(xintercept = as.numeric(median(df$util_bill, na.rm = T)),
+            geom_vline(xintercept = as.numeric(median(df$var_ub, na.rm = T)),
                        color = 'blue') +
             theme(legend.position = 'none',
                   panel.background = element_rect(fill =NA),
@@ -2366,11 +2377,11 @@ shinyServer(function(input, output, session) {
           
           if (input$marginalVis == 'Stacked histograms'){
             
-            plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = g), data = df) +
+            plot_util_marg2 <- ggplot(aes_string(x = 'var_ub', fill = g), data = df) +
               geom_histogram(bins = input$bins, alpha = 0.5) +
-              geom_vline(xintercept = as.numeric(mean(df$util_bill, na.rm = T)),
+              geom_vline(xintercept = as.numeric(mean(df$var_ub, na.rm = T)),
                          color = 'red') +
-              geom_vline(xintercept = as.numeric(median(df$util_bill, na.rm = T)),
+              geom_vline(xintercept = as.numeric(median(df$var_ub, na.rm = T)),
                          color = 'blue') +
               theme(legend.position = 'none',
                     panel.background = element_rect(fill =NA),
@@ -2392,12 +2403,12 @@ shinyServer(function(input, output, session) {
             
             if (input$marginalVis == 'Stacked relative barchart'){
               
-              plot_util_marg2 <- ggplot(aes_string(x = 'util_bill', fill = g), data = df) +
+              plot_util_marg2 <- ggplot(aes_string(x = 'var_ub', fill = g), data = df) +
                 geom_histogram(position = 'fill', bins = input$bins, alpha = 0.5) +
                 ylab('%') +
-                geom_vline(xintercept = as.numeric(mean(df$util_bill, na.rm = T)),
+                geom_vline(xintercept = as.numeric(mean(df$var_ub, na.rm = T)),
                            color = 'red') +
-                geom_vline(xintercept = as.numeric(median(df$util_bill, na.rm = T)),
+                geom_vline(xintercept = as.numeric(median(df$var_ub, na.rm = T)),
                            color = 'blue') +
                 theme(legend.position = 'none',
                       panel.background = element_rect(fill =NA),
@@ -2494,7 +2505,7 @@ shinyServer(function(input, output, session) {
       
       if (input$color_var == 'none'){
         
-        plot_util_rel <- ggplot(aes_string(x = input$util_inputs, y = 'util_bill'), data = df) +
+        plot_util_rel <- ggplot(aes_string(x = input$util_inputs, y = 'var_ub'), data = df) +
           geom_point(alpha = 1/input$alpha, position = 'jitter') +
           theme(#aspect.ratio  = 1, - bug pri brushingu
             legend.position = 'none',
@@ -2508,7 +2519,7 @@ shinyServer(function(input, output, session) {
         
         if (input$color_var != 'none'){
           
-          plot_util_rel <- ggplot(aes_string(x = input$util_inputs, y = 'util_bill', color = input$color_var), data = df) +
+          plot_util_rel <- ggplot(aes_string(x = input$util_inputs, y = 'var_ub', color = input$color_var), data = df) +
             geom_point(alpha = 1/input$alpha, position = 'jitter') +
             scale_colour_gradientn(colours=rainbow(5)) +
             theme(#aspect.ratio  = 1, - bug pri brushingu
@@ -2567,7 +2578,7 @@ shinyServer(function(input, output, session) {
     
     if (input$density_plotType == 'poly'){
       
-      plot_dens <- ggplot(aes_string(x = input$util_inputs, y = 'util_bill'), data = df) +
+      plot_dens <- ggplot(aes_string(x = input$util_inputs, y = 'var_ub'), data = df) +
         stat_density2d(aes(fill = ..level..), geom = 'polygon') +
         scale_fill_gradientn(colours = colorRampPalette(c('blue', 'yellow',"orange", "red", 'darkred'))(100)) +
         theme(panel.background = element_rect(fill =NA),
@@ -2579,7 +2590,7 @@ shinyServer(function(input, output, session) {
       
     } else {
       
-      plot_dens <- ggplot(aes_string(x = input$util_inputs, y = 'util_bill'), data = df) +
+      plot_dens <- ggplot(aes_string(x = input$util_inputs, y = 'var_ub'), data = df) +
         stat_density2d(aes(fill = ..density.., alpha=ifelse(..density.. < 1e-5, 0, 1)), geom = 'tile', contour = F) +
         scale_fill_gradientn(colours = colorRampPalette(c('white','blue', 'yellow',"orange", "red", 'darkred'))(100)) +
         theme(panel.background = element_rect(fill =NA),
@@ -2618,7 +2629,7 @@ shinyServer(function(input, output, session) {
       
       # polygon
       
-      plot_densAll <- ggplot(aes_string(x = input$util_inputs_dens, y = 'util_bill'), data = df) +
+      plot_densAll <- ggplot(aes_string(x = input$util_inputs_dens, y = 'var_ub'), data = df) +
         stat_density2d(aes(fill = ..level..), geom = 'polygon') +
         scale_fill_gradientn(colours = colorRampPalette(c('blue', 'yellow',"orange", "red", 'darkred'))(100)) +
         theme(panel.background = element_rect(fill =NA),
@@ -2634,7 +2645,7 @@ shinyServer(function(input, output, session) {
         
         # heatmap
         
-        plot_densAll <- ggplot(aes_string(x = input$util_inputs_dens, y = 'util_bill'), data = df) +
+        plot_densAll <- ggplot(aes_string(x = input$util_inputs_dens, y = 'var_ub'), data = df) +
           stat_density2d(aes(fill = ..density.., alpha=ifelse(..density.. < 1e-5, 0, 1)), geom = 'tile', contour = F) +
           scale_fill_gradientn(colours = colorRampPalette(c('white','blue', 'yellow',"orange", "red", 'darkred'))(100)) +
           theme(panel.background = element_rect(fill =NA),
@@ -2652,19 +2663,19 @@ shinyServer(function(input, output, session) {
     
   })
   
-  output$test_inputs <- renderPrint({
-    
-    event.data <- event_data("plotly_click", source = "plotly1")
-    event.data
-    
-  })
+  # output$test_inputs <- renderPrint({
+  #   
+  #   event.data <- event_data("plotly_click", source = "plotly1")
+  #   event.data
+  #   
+  # })
   
-  output$test_inputs2 <- renderPrint({
-    
-    event.data <- event_data("plotly_selected", source = "plotly1")
-    event.data
-    
-  })
+  # output$test_inputs2 <- renderPrint({
+  #   
+  #   event.data <- event_data("plotly_selected", source = "plotly1")
+  #   event.data
+  #   
+  # })
   
   output$utilization_inputs_box <- renderPlotly({
     
@@ -2690,7 +2701,7 @@ shinyServer(function(input, output, session) {
       
     }
     
-    bin_plot <- ggplot(aes_string(x = 'xBinned', y = 'util_bill', fill = input$grouping), data = df) +
+    bin_plot <- ggplot(aes_string(x = 'xBinned', y = 'var_ub', fill = input$grouping), data = df) +
       geom_boxplot(alpha = 0.4) +
       geom_point(fun.y = mean, stat = 'summary', shape = 1) +
       coord_cartesian(ylim = c(0,1.5)) +
@@ -2731,11 +2742,13 @@ shinyServer(function(input, output, session) {
     
     req(input$units) # causes when changing grouping and units are nullified, the 3d chart dissapears
     
-    input$render_three_button
+    #input$render_three_button
+    
+    #c(input$three_x_var, input$)
     
     df <- dfToPlot$df
     
-    isolate(
+   # isolate(
       
       if (input$grouping == input$three_color_var){
         
@@ -2758,9 +2771,9 @@ shinyServer(function(input, output, session) {
       }
       
       
-    )
+    #)
     
-    isolate(
+    #isolate(
       
       if (input$three_size_var == 'none'){
         
@@ -2781,14 +2794,14 @@ shinyServer(function(input, output, session) {
         
       }
       
-    )
+    #)
     
-    chartToPlot <- isolate(scatterplot3js(x = df[[input$three_x_var]], 
+    chartToPlot <- scatterplot3js(x = df[[input$three_x_var]], 
                                           y = df[[input$three_y_var]], 
-                                          z = df$util_bill, 
+                                          z = df$var_ub, 
                                           color = three_color, 
                                           size = three_size,
-                                          renderer = 'canvas'))
+                                          renderer = 'canvas')
     if (is.null(dfToPlot$df)){
       
       chartToPlot <- NULL
@@ -2813,7 +2826,7 @@ shinyServer(function(input, output, session) {
       
       if (input$color_var_select %in% c('none', 'USER_NAME')){
         
-        plot_selected <- ggplot(aes_string(x = input$util_inputs_selected, y = 'util_bill'),
+        plot_selected <- ggplot(aes_string(x = input$util_inputs_selected, y = 'var_ub'),
                                 data = df) +
           geom_point(alpha = 1/input$alpha, position = 'jitter', size = input$psize) +
           theme(legend.position = 'bottom',
@@ -2829,7 +2842,7 @@ shinyServer(function(input, output, session) {
         
         if (input$color_var_select != g){
           
-          plot_selected <- ggplot(aes_string(x = input$util_inputs_selected, y = 'util_bill', color = input$color_var_select),
+          plot_selected <- ggplot(aes_string(x = input$util_inputs_selected, y = 'var_ub', color = input$color_var_select),
                                   data = df) +
             geom_point(alpha = 1/input$alpha, position = 'jitter', size = input$psize) +
             scale_colour_gradientn(colours = rainbow(5)) +
@@ -2849,7 +2862,7 @@ shinyServer(function(input, output, session) {
           
           if (input$color_var_select == g){
             
-            plot_selected <- ggplot(aes_string(x = input$util_inputs_selected, y = 'util_bill', color = input$color_var_select),
+            plot_selected <- ggplot(aes_string(x = input$util_inputs_selected, y = 'var_ub', color = input$color_var_select),
                                     data = df) +
               geom_point(alpha = 1/input$alpha, position = 'jitter', size = input$psize) +
               theme(legend.position = 'bottom',
@@ -2968,7 +2981,7 @@ shinyServer(function(input, output, session) {
   
   output$main_table <- renderRpivotTable({
     
-    tab <- rpivotTable(df_util, rows = 'GEO_NAME', cols = 'YEARMONTH', aggregatorName = 'Average', vals = 'util_bill',
+    tab <- rpivotTable(df_util, rows = 'GEO_NAME', cols = 'YEARMONTH', aggregatorName = 'Average', vals = 'var_ub',
                        rendererName = 'Table')
     
     tab
@@ -3006,27 +3019,27 @@ shinyServer(function(input, output, session) {
     all_unitsDF <- all_unitsDF[all_unitsDF$YEARMONTH == YM_clicked,] # filter out not clicked months
     
     helpDF <- all_unitsDF %>%
-      summarise(t_bill_sumAll = sum(t_bill),
-                t_inv_sumAll = sum(t_inv),
+      summarise(var_tb_sumAll = sum(var_tb),
+                var_ti_sumAll = sum(var_ti),
                 countAll = n())
     
     all_unitsDF <- all_unitsDF %>%
       group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
-      summarise(median = round(median(util_bill), 2),
-                mean = round(mean(util_bill), 2),
-                t_bill_sum = round(sum(t_bill), 2),
-                t_inv_sum = round(sum(t_inv), 2),
+      summarise(median = round(median(var_ub), 2),
+                mean = round(mean(var_ub), 2),
+                var_tb_sum = round(sum(var_tb), 2),
+                var_ti_sum = round(sum(var_ti), 2),
                 count = n()) %>%
       ungroup()
     
-    all_unitsDF$t_bill_sumP <- round(all_unitsDF$t_bill_sum/helpDF$t_bill_sumAll, 2)
-    all_unitsDF$t_inv_sumP <- round(all_unitsDF$t_inv_sum/helpDF$t_inv_sumAll, 2)
+    all_unitsDF$var_tb_sumP <- round(all_unitsDF$var_tb_sum/helpDF$var_tb_sumAll, 2)
+    all_unitsDF$var_ti_sumP <- round(all_unitsDF$var_ti_sum/helpDF$var_ti_sumAll, 2)
     all_unitsDF$countP <- round(all_unitsDF$count/helpDF$countAll, 2)
     
     # columns reorder
     
-    all_unitsDF <- all_unitsDF[, c(input$grouping, 'median', 'mean', 't_bill_sum', 't_bill_sumP',
-                                   't_inv_sum', 't_inv_sumP', 'count', 'countP')]
+    all_unitsDF <- all_unitsDF[, c(input$grouping, 'median', 'mean', 'var_tb_sum', 'var_tb_sumP',
+                                   'var_ti_sum', 'var_ti_sumP', 'count', 'countP')]
     
     plots_clickDF$main_dTable <- all_unitsDF
     
@@ -3049,27 +3062,27 @@ shinyServer(function(input, output, session) {
     all_unitsDF <- pass_df()
     
     helpDF <- all_unitsDF %>%
-      summarise(t_bill_sumAll = sum(t_bill),
-                t_inv_sumAll = sum(t_inv),
+      summarise(var_tb_sumAll = sum(var_tb),
+                var_ti_sumAll = sum(var_ti),
                 countAll = n())
     
     all_unitsDF <- all_unitsDF %>%
       group_by_(.dots = lapply(input$grouping, as.symbol)) %>%
-      summarise(median = round(median(util_bill), 2),
-                mean = round(mean(util_bill), 2),
-                t_bill_sum = round(sum(t_bill), 2),
-                t_inv_sum = round(sum(t_inv), 2),
+      summarise(median = round(median(var_ub), 2),
+                mean = round(mean(var_ub), 2),
+                var_tb_sum = round(sum(var_tb), 2),
+                var_ti_sum = round(sum(var_ti), 2),
                 count = n()) %>%
       ungroup()
     
-    all_unitsDF$t_bill_sumP <- round(all_unitsDF$t_bill_sum/helpDF$t_bill_sumAll, 2)
-    all_unitsDF$t_inv_sumP <- round(all_unitsDF$t_inv_sum/helpDF$t_inv_sumAll, 2)
+    all_unitsDF$var_tb_sumP <- round(all_unitsDF$var_tb_sum/helpDF$var_tb_sumAll, 2)
+    all_unitsDF$var_ti_sumP <- round(all_unitsDF$var_ti_sum/helpDF$var_ti_sumAll, 2)
     all_unitsDF$countP <- round(all_unitsDF$count/helpDF$countAll, 2)
     
     # columns reorder
     
-    all_unitsDF <- all_unitsDF[, c(input$grouping, 'median', 'mean', 't_bill_sum', 't_bill_sumP',
-                                   't_inv_sum', 't_inv_sumP', 'count', 'countP')]
+    all_unitsDF <- all_unitsDF[, c(input$grouping, 'median', 'mean', 'var_tb_sum', 'var_tb_sumP',
+                                   'var_ti_sum', 'var_ti_sumP', 'count', 'countP')]
     
     plots_clickDF$main_dTable <- all_unitsDF
     
@@ -3099,19 +3112,19 @@ shinyServer(function(input, output, session) {
                     #                 }'))) %>%
                     #rowCallback = DT::JS(h))) %>%
                   )) %>%
-      formatPercentage(c('t_bill_sumP', 't_inv_sumP', 'countP')) %>%
-      formatStyle('t_bill_sumP',
-                  background = styleColorBar(df$t_bill_sumP, 'lightblue')) %>%
-      formatStyle('t_inv_sumP',
-                  background = styleColorBar(df$t_inv_sumP, 'lightblue')) %>%
+      formatPercentage(c('var_tb_sumP', 'var_ti_sumP', 'countP')) %>%
+      formatStyle('var_tb_sumP',
+                  background = styleColorBar(df$var_tb_sumP, 'lightblue')) %>%
+      formatStyle('var_ti_sumP',
+                  background = styleColorBar(df$var_ti_sumP, 'lightblue')) %>%
       formatStyle('countP',
                   background = styleColorBar(df$countP, 'lightblue')) %>%
       formatStyle('mean', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue'))) %>%
       formatStyle('median', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue'))) %>%
-      formatStyle('t_bill_sum',
-                  background = styleColorBar(df$t_bill_sum, '#ffdb99')) %>%
-      formatStyle('t_inv_sum',
-                  background = styleColorBar(df$t_inv_sum, '#ffdb99')) %>%
+      formatStyle('var_tb_sum',
+                  background = styleColorBar(df$var_tb_sum, '#ffdb99')) %>%
+      formatStyle('var_ti_sum',
+                  background = styleColorBar(df$var_ti_sum, '#ffdb99')) %>%
       formatStyle('count',
                   background = styleColorBar(df$count, '#ffdb99'))
     
@@ -3128,14 +3141,14 @@ shinyServer(function(input, output, session) {
   #   
   # })
   
-  output$test1 <- renderPrint({
-    
-    #input$inputs_brush
-    #pass_df_selected()[as.numeric(input$selected_table_rows_selected), ]
-    #input$inputs_dblclick
-    #unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])
-    
-  })
+  # output$test1 <- renderPrint({
+  #   
+  #   #input$inputs_brush
+  #   #pass_df_selected()[as.numeric(input$selected_table_rows_selected), ]
+  #   #input$inputs_dblclick
+  #   #unique(pass_df_selected_brush()[as.numeric(input$selected_table_rows_selected),'USER_NAME'])
+  #   
+  # })
   # 
   
   
@@ -3174,9 +3187,9 @@ shinyServer(function(input, output, session) {
                                                buttons = list('copy', 'print', list(extend = 'collection',
                                                                                     buttons = c('csv', 'excel', 'pdf'),
                                                                                     text = 'Download')))) %>%
-        formatStyle('util_bill', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue'))) %>%
-        formatStyle('t_bill', background = styleColorBar(df$t_bill, 'lightblue')) %>%
-        formatStyle('t_inv', background = styleColorBar(df$t_bill, 'lightblue'))
+        formatStyle('var_ub', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue'))) %>%
+        formatStyle('var_tb', background = styleColorBar(df$var_tb, 'lightblue')) %>%
+        formatStyle('var_ti', background = styleColorBar(df$var_tb, 'lightblue'))
       
       renderDT
       
@@ -3186,27 +3199,31 @@ shinyServer(function(input, output, session) {
     
   })
   
+ 
   
   output$users_dyg <- renderDygraph({
+    
+    req(input$user_list_select)
     
     if (!is.null(input$user_list_select)){
       
       f <- df_util %>% 
-        filter(USER_NAME %in% input$user_list_select) %>%
-        group_by(USER_NAME, YEARMONTH) %>%
-        summarise(t_bill = sum(t_bill), 
-                  t_inv = sum(t_inv), 
-                  exp_bill = sum(exp_bill)) %>%
-        mutate(util_bill = (t_bill + t_inv)/exp_bill) %>%
-        select(YEARMONTH, USER_NAME, util_bill) %>%
-        ungroup()
+         filter(USER_NAME %in% input$user_list_select) %>%
+         group_by(USER_NAME, YEARMONTH) %>%
+         summarise(var_tb = first(var_tb), 
+                   var_ti = first(var_ti), 
+                   var_eb = first(var_eb),
+                   var_ub = first(var_ub)) %>%
+          select(YEARMONTH, USER_NAME, var_ub) %>%
+          ungroup()
       
-      df_toDygraph <- spread(data = f, key = USER_NAME, value = util_bill)
+     
+      df_toDygraph <- spread(data = f, key = USER_NAME, value = var_ub)
       
       df_toDygraph_xts <- xts(x = df_toDygraph[, colnames(df_toDygraph) != 'YEARMONTH'], 
                               order.by = as.POSIXct(strptime(as.character(df_toDygraph$YEARMONTH), format = "%Y-%m-%d")))
       
-      plot_dyg <- dygraph(df_toDygraph_xts, y = 'User utilization') %>% 
+      plot_dyg <- dygraph(df_toDygraph_xts, y = 'User var_ub') %>% 
         dyRangeSelector(height = 20) %>%
         dyHighlight(highlightSeriesOpts = list(strokeWidth = 3),
                     highlightCircleSize = 4,
@@ -3225,26 +3242,26 @@ shinyServer(function(input, output, session) {
     
   })
   
-  output$test2 <- renderPrint({
-    
-    #clickedCountry()
-    
-    #userCountry_map()
-    
-    # df <- dataMap$df@data[!is.na(dataMap$df@data$radius), c('name', 'measure_color', 'measure_circle', 'radius', 'maxc')]
-    # arrange(df, desc(radius))
-    
-  })
+  # output$test2 <- renderPrint({
+  #   
+  #   #clickedCountry()
+  #   
+  #   #userCountry_map()
+  #   
+  #   # df <- dataMap$df@data[!is.na(dataMap$df@data$radius), c('name', 'measure_color', 'measure_circle', 'radius', 'maxc')]
+  #   # arrange(df, desc(radius))
+  #   
+  # })
   
-  output$test3 <- renderPrint({
-    
-    #clickedCountry()
-    
-    #userCountry_map()
-    
-    # dfcirc$df
-    
-  })
+  # output$test3 <- renderPrint({
+  #   
+  #   #clickedCountry()
+  #   
+  #   #userCountry_map()
+  #   
+  #   # dfcirc$df
+  #   
+  # })
   
   dataMap <- reactiveValues(df = NULL)
   
@@ -3498,7 +3515,7 @@ shinyServer(function(input, output, session) {
                                  colReorder = TRUE,
                                  scrollY = 400,
                                  scroller = TRUE)) %>%
-      formatStyle('util_bill', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue')))
+      formatStyle('var_ub', fontWeight = 'bold', color = styleInterval(c(0.8), c('red', 'blue')))
     
   })
   
@@ -3509,172 +3526,122 @@ shinyServer(function(input, output, session) {
       start = c('2016-07-26', '2016-05-26', '2016-05-25', '2016-03-03', '2016-01-25'),
       end = c(NA, NA, NA, NA, NA),
       content = c('<ul>
-                  <li>Merge of Queue 1 and 5</li>
-                  <li>Move IGF ECM workload from Queue 5 to Queue 3</li>
-                  <li>Queue 2 share workload with Queue 3</li>
-                  <li>Queue 6 share IGF Portal 8 workload with Queue 3</li>
-                  <li>New Queue 1 EMEA Smarter computing project move to Queue 3</li>
+                  <li>Merge of team 1 and 5</li>
+                  <li>Move IGF ECM workload from team 5 to team 3</li>
+                  <li>team 2 share workload with team 3</li>
+                  <li>team 6 share IGF P 11 workload with team 3</li>
+                  <li>New team 1 EMEA Smarter computing project moved to team 3</li>
                 </ul>',
                   
                   'Watermark script announcement',
                   
                   '<ul>
-                    <li>Katka on board announcement</li>
+                    <li>New manager on board announcement</li>
                     <li>Team reporting structure changes</li>
                   </ul>',
                   
                   'Global tech lead team changes announcement',
                   
-                  'Alignment of WASO with DA and DSG')
+                  'Alignment of WAMV with DA and DSG')
     )
     
     timevis(df)
     
   })
   
+  output$desc <- renderUI({
+    
+    div(
+      br(),
+      h3('About app and data'),
+      p("Purpose of this app is to illustrate basic functionality of R's Shiny framework with focus on exploratory
+        data analysis and usage of various visualisation libraries (ggplot2, plotly, dygraphs, leaflet, threejs, timevis). 
+        This is my first app, so please be patient, few things might not work as expected :). The code is a bit mess, 
+        but I did my best (I learned on the go) and can be found", a(href='https://github.com/jklen/dash', 'here.'), 
+        " Used dataset consists of users normalized monthly utilization (var_ub) for selected categories (geo, organization, 
+        and department) and compared to continous variables used as inputs for calculations (normalized var_eb, var_ti, var_tb)."
+        ),
+      h3('Tabs description'),
+      h4('Main'),
+      p('Main prompts common for most of the tabs are date filter, users monthly utilization value and groups to investigate
+        (Geo, Organization, Department). When these prompts are changed, selection prompt is nullified. Default main plot 
+        is boxplot for each selected category and month showing:',
+        tags$ul(tags$li('median - dash mark'),
+                tags$li('mean - small circle mark'),
+                tags$li('10th and 90th percentile - x mark')
+        )
+      ),
+      p('Except boxplot, it possible to choose from other type of charts like point chart with circle size as user count and 
+        with its center position in category mean or selected quantile with animation, or few barcharts. To boxplot and 
+        point chart you can add 2 layers:',
+        tags$ul(tags$li('median (blue full line) and mean (red full line) of selected categories together'),
+                tags$li('global median and mean as dashed lines')),
+        'Marginal plots are showing overall distribution, distribution of users utilization in selected categories in various 
+        forms like overlaid histograms, boxplots, stacked histograms or relative barcharts. Number of bins can be changed 
+        as well.'),
+      p('When it comes to interactivity, you can:',
+        tags$ul(tags$li('brush 1st marginal plot along Y axis and double click on the selection to zoom/refresh all three charts'),
+                tags$li('click on some category of you interest on main plot (box plot, point chart or dodged barchart) to 
+                        see its details in given month in a datatable below and compare it to all categories in given month.'),
+                tags$li('click on category in 2nd marginal plot (boxplot) to see its details in datatable below and compare it 
+                        to all categories in all months'))),
+      h4('Group influence'),
+      p('In this section you can investigate 3 measures:',
+        tags$ul(tags$li('Percent within category - how much % values of selected category is under/above global statistic 
+                        (mean, quantile), or under/above statistic of categories of selected level'),
+                tags$li('Share from all users under statistic - how much % of users of all users under 
+                        selected global statistic (or some level) are from selected group'),
+                tags$li('Category influence - how much % influences selected category global statistic (or some level)')),
+        'Except the possibility to select statistic to compare (mean, quantile) and level (global, organization,...), you 
+        can also merge categories (they will be threatet as one), filter out categories (all calculations are done without them),
+         or hide categories (the are used in calculations, but will be hidden in chart) so you can closer investigate small values.
+        2 views aro possible: per month and overall.'),
+      h4('Inputs'),
+      p('In this section you can investigate relationship of users utilization to input variables in various ways:',
+        tags$ul(tags$li("as faceted 2d scatter plot for each category and month - here you can select
+                         some part of the data, which you can then investigate closer in 'Selected' tab."),
+                tags$li('as faceted 2d density plot - polygon or heatmap'),
+                tags$li('as faceted boxplot of binned x variable (plotly) - you can set number of splits and if the splits 
+                        should be calculated based on values or quantiles'),
+                tags$li('as 2d density plot with all selected data - polygon or heatmap'),
+                tags$li('as 3d scatter plot with all selected data (threejs)')),
+        'You can also map other input variables to X axis (Y axis variable is var_ub and is always fixed), to points 
+        color or points size, or change few other parameters, like alpha, smoothing as regression line or conditional mean.'),
+      h4('Selected'),
+      p('Here you can closer investigate data, which you selected in Inputs tab, when you hover over the chart, or in datatable 
+        below. Zooming is also possible with brush/dblclick. When you select color variable as User and select some entry 
+        in datatable, selected datapoints per user will be in chart highlited. When some smoothing selected, it will be 
+        done per user.'),
+      h4('Users - all'),
+      p('In this section you can investigate users utilization as timeseries for each user separately. It is more demonstration 
+        of dygraphs library and its features (default zooming per X or Y axis, range selector, nicely highlighted timeseries 
+        when you hover over them.'),
+      h4('User countries'),
+      p('With used leaflet library, you can see summary statistics of users grouped by their countries of origin, with 
+        possibility to map variables to polygon color or to circle size. When you click on some polygon or circle, datatable 
+        will be shown below the map with data of users.'),
+      h4('Pivot & Events'),
+      p('These 2 libriaries might be useful too (rpivotTable, timevis), including very nice features and interactivity')
+    )
+    
+    
+  })
+  
 })
 
-################################################################################
+#########################################################################c("#33B83E", "#0B54C2", "darkorchid3")
 
-# aspon 3 metriky co monitoruju vykon nejakej role
-# 
-# WPL - QA app rate
-#     - sponosor app rate
-#     - WDL app rate?
-#     - OTD to sponsor
-#     - turnaround?
-#     - waiting times?
-# WB  - report EM Web builder?
-# par globalnych metrik
-# utilizacia  - podla geo -> dept -> org -> user 41
-#             - datatable mainPlot - pre kazdu unit a yearmonth - median, priemer, 1 kvartil, 3 kvartil, count, percento z viditelneho
-#             - pivotka ked bude viacero metrik, vyber z metrik alebo volba datasetu v promptoch
-#             - pivotka - sortovanie, vyhladavanie - dataTables
-#             - ciara median globalnej utilizacie v mesiaci
-#             - nejako vizualizovat, alebo hodit do tabulky o kolko percent dany subset snizuje/zvysuje median globalnej
-#                 utilizacie v mesiaci a celkovo, mozno aj utilizacie levelu nad, percento hodnot pod medianom
-#             - pre boxplot - checkbox, ci ukazat box pre 1 level nad (pre porovnanie napr. danej organizacie a gea pod ktorym je),
-#                 nebude zahrnuty do marginal plotu
-#             - brushing  bez zoomu ako filter do tabulky pod - utilizacia userov
-#             * slider mesiace aj hodnoty
-#             - druhy graf pod - celkovy histogram alebo boxplot (listbox), podla zvolenych
-#                 centier, dept., userov, zoradeny podla medianov
-#             - marginal plot na to co je zobrazene celkovo (selectnute v promtoch), compedium alebo http://daattali.com/shiny/ggExtra-ggMarginal-demo/
-#                 ako histogram s ciarami vpravo, hore ako barchart (count)
-#             * checkbox na centra, departmenty, alebo userov
-#             - checkbox ci budu prompty kaskadovane
-#             - cislo pri boxplote: expected billable hours
-#             - cislo pri boxplote: rast v % celkovej utilizacie oproti
-#                 minulemu mesiacu
-#             - download csv a grafu
+# PREZENTACNE UCELY, ZMENIT
 
-#             - Main tab - tabulka s uplne vsetkymi units v ramci obdobia a hodnot utilizacie (priemer, median, count) podla mesiacov,
-#             -         - druha tabulka s celkovo za vsetky zvolene mesiace
-
-
-# analyticka funkcionalita - rozne metriky na task, round?
-# 1 premenna - grafy, summary
-# 2 a viac premennych - korelacna matica,
-# zistovat pravdepodobnost roznych eventov - markove modely, asociacne pravidla?
-# analyza workflov
-# analyza 'zdrojovej narocnosti' taskov
-# moznost analyzovat vlastny datovy set
-# vizualizacne vychytavky - rCharts, Google charts (google vis), plotly, ggvis, ggplot2
-# interaktivna mapa, nejaka jednoducha metrika na staty
-# googleVis - calendar chart - napr. pocet submitnutych taskov na osobu, centrum, sponsora
-#   - motion chart - s animaciou
-#   - sankey diagram - budget a spending projektov?
-# radar chart - rozne metriky na geo, center, dpt, usera / spiderweb chart - budget vs. spending http://jkunst.com/highcharter/highcharts.html
-# mosaic plot/ treemap
-
-
-# v tabulke user je v 34 riadku volaka cinska picovina, robi bordel - stlpec BUSNEED
-
-# filtre - date_range, util_value, reac_units -> grouping - grouping -> union - check_uplevel
-
-# MAPA  - datum, utilizacia filter -> zakl. data do leafletu na vykreslenie prazdnych polygonov ##### NETREBA???
-#       - unit filter do observera -> leafletproxy na prekreslovanie
-
-# 2.
-# globalny priemer a median, pocetnosti OK
-# moznost porovnat zvolene grafy
-# plotly boxplot, spravit cut quantilov pri values
-# moznost zmeny filtra datumu a hodnoty utilizacie bez toho, aby mi to vynulovalo
-# pri grafoch moznost xlim a ylim
-# nulovat selectnute riadky v tabulke select tab https://yihui.shinyapps.io/DT-proxy/
-
-# GROUP INFLUENCE
-# m1. user count
-# m2. perc. podiel (user count) kategorie zo zvolenych, zo vsetkych - mozno?
-# m3. kolko percent hodnot kategorie je pod/nad hodnotou zvolenej statistiky (zo zvolenych napr. celkovy priemer zvolenych, aj vsetkych kategorii napr. celkovy priemer vsetkych)
-# m4. aky je perc. podiel hodnot kategorie pod hodnotou zvolenej statistiky (zo zvolenych kategorii pod, aj vsetkych pod) napr. hodnoty grupy1 pod celkovym medianom zvolenych grup tvoria 40% vsetkych zvolenych hodnot pod celkovym medianom zvolenych grup
-# ---
-# m1. aky ma cela kategoria percentualny vplyv na pohyb zvolenej statistiky zvoleneho grupovania (aj toho co je zvolene)
-# m2. aky maju len hodnoty kategorie pod zvolenou statistikou zvoleneho grupovania percentualny vplyv na jej pohyb (aj toho co je zvolene)
-# pod/nad - dat moznost?
-
-# pomer t_bill/t_inv
-
-# 
-
-# prezentacia
-
-# 1. ci chapu pojmy
-# 2. oboznamenie - najprv R a Shiny, potom apka
-# 3. R - programovaci jayzyk zamerany na pracu s datami, opensource, rozsiritelny pomocou kniznic/packegov, RStudio - ukazat aj trocha z kodu
-#       - najst nejake cisla porovnania s inymi analytickymi toolmi, cisla zo stackoverflow, podpora pre najvacsie cloudove/analyticke platformy
-#       - t.j. - spracovanie dat z roznych zdrojov
-#               - manipulacia s datami - vektory, matice, dataframy...principy, kniznice (sqldf, reshape, dplyr, tidyr
-#               - analyza (kopec uz vytvorenych funkcii a kopec dalsich moznych kniznic) a vizualizacia dat (uz vytvorene base funkcie
-#                       plus ggplot2 (strucne opisat), ggvis, plotly, dygraph, D3, google charts, rCharts, geograficke data leaflet, tmap a dalsie,
-#                       interaktivita, animacie
-#               - modelovanie dat - vsemozne statisticke algoritmy, strojoveho ucenia, clustrovanie, segmentacne, asociacne,
-#                                       - modelovanie streamovanych dat (zive?), sluzby zez api
-#               - dalsie...
-# 4. shiny - kniznica/web application framework pre R (tj. v R spravis vsetku pracu s datami (manipulovanie, modelovanie, analyzy...) a v Shiny riesis funkcionalitu)
-#           - koncept reaktivity
-#           - moznost interaktivity podla pouzitej kniznice (grafy, tabulky)
-# 5. moja apka - popisat UIcko - panel na prompty, ktore sa dynamicky menia a taby
-#               - popisat pri kazdom vystupe ake informacie ukazuje a moznosti zlepsenia (napr. pri boxplote violin plot, zobrazit cislo s nejakou inou premennou, 
-#                       alebo klik na nejaku katogoriu a zobrazenie nejakeho ineho grafu ci tabulky)
-#               - popisat cca ako to funguje
-# 6. co dalsie by sa malo dat este v shiny spravit, priklady, javascript css html v kode
-# 7. R + Shiny ako tool na reporting?  - dashboardy, shiny server a shinyapps.io, 
-#                                     - parametrizovane a interaktivne HTML (PDF, WORD,...) dokumenty a prezentacie (slidy, slidify, ioslides)
-#                                         vytvorene v RMarkdown, automatizacia?, encoding dat (RData) do html, HTML report
-#                                         v Shiny appke/dashboarde alebo samostatne (mesacna, kentova, utilizacia od vila, personalizovany
-#                                         report s roznymi metrikami a ich spracovanim
-#                                     - nutne preskumat nevyhnutnu funkcionalitu
-#                                     - crosstaby jednoducho?
-# 8. Strucne zhrnut pozitiva a negativa a veci co este treba preskumat
-
-# 2 strucne o prediktivnom modelovani a procese jak to funguje
-# 2 nase vytvory
-# 2 potencial, napady,...dd
+#   DEPT_NAME
+#   ORG_NAME
+#   USER_NAME
+#   normalizovat var_tb, var_ti, var_eb, var_ub a zmenit nazvy (metric1 - 4)
+#   zrusit timevis
+#   dorobit sekciu "Description and help"
 
 # http://www.r-tutor.com/elementary-statistics/non-parametric-methods/mann-whitney-wilcoxon-test
 # http://stackoverflow.com/questions/20060949/ggplot2-multiple-sub-groups-of-a-bar-chart
-
-# ggplot(aes(x = interaction(ORG_NAME, YEARMONTH), y = m, fill = GEO_NAME), data = df_util_test) +
-#   geom_bar(stat = 'identity', position = 'dodge', alpha = 0.5) +
-#   annotate('text',
-#            x = 1:length(unique(interaction(df_util_test$ORG_NAME, df_util_test$YEARMONTH))),
-#            y = - 0.02, label = rep(unique(df_util_test$ORG_NAME), length(unique(df_util_test$YEARMONTH)))) +
-#   annotate('text',
-#            x = (1:(length(unique(df_util_test$YEARMONTH)))) * length(unique(df_util_test$ORG_NAME)) - length(unique(df_util_test$ORG_NAME))/2 + 0.5 ,
-#            y = - 0.07, label = unique(df_util_test$YEARMONTH)) +
-#   theme(panel.background = element_rect(fill =NA),
-#         axis.text.x = element_blank(),
-#         panel.grid.major = element_line(colour = '#e5e5e5'),
-#         panel.grid.major.x = element_blank(),
-#         axis.ticks.x = element_blank(),
-#         axis.line = element_line(colour = '#bdbdbd'),
-#         axis.title.y = element_blank(),
-#         axis.title.x = element_blank()) +
-#   geom_vline(xintercept = seq(length(unique(df_util_test$ORG_NAME)) + 0.5,
-#                               length(unique(interaction(df_util_test$ORG_NAME, df_util_test$YEARMONTH))),
-#                               length(unique(df_util_test$ORG_NAME))))
-
 # http://www.hafro.is/~einarhj/education/ggplot2/scales.html
 # http://zevross.com/blog/2014/08/04/beautiful-plotting-in-r-a-ggplot2-cheatsheet-3/
 # http://www.cookbook-r.com/
