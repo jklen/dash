@@ -1,2 +1,2 @@
 # dash
-shiny dashboard
+App created in R's Shiny framework.
